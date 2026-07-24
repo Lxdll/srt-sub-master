@@ -1,0 +1,2 @@
+"""Local recognition agent package."""
+

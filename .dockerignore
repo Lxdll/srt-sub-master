@@ -1,0 +1,15 @@
+.git
+.github
+.pnpm-store
+node_modules
+web/node_modules
+web/dist
+server/.venv
+agent/.venv
+**/__pycache__
+**/.pytest_cache
+data
+build
+dist
+.env
+deploy/.env

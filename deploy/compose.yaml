@@ -1,0 +1,39 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    environment:
+      SRT_PUBLIC_URL: https://${SRT_DOMAIN}
+      SRT_ALLOWED_ORIGINS: https://${SRT_DOMAIN}
+      SRT_DATA_DIR: /data
+      SRT_SESSION_SECRET: ${SRT_SESSION_SECRET}
+      SRT_COOKIE_SECURE: "true"
+      SRT_ADMIN_USERNAME: ${SRT_ADMIN_USERNAME}
+      SRT_ADMIN_PASSWORD: ${SRT_ADMIN_PASSWORD}
+    volumes:
+      - srt_data:/data
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      SRT_DOMAIN: ${SRT_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  srt_data:
+  caddy_data:
+  caddy_config:

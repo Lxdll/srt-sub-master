@@ -1,0 +1,16 @@
+{
+  "name": "srt-sub-master",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.13.1",
+  "scripts": {
+    "dev": "pnpm --dir web dev",
+    "build": "pnpm --dir web build",
+    "generate:api": "server/.venv/bin/python scripts/export_openapi.py && pnpm --dir web exec openapi-typescript openapi.json -o src/generated/api.ts",
+    "typecheck": "pnpm --dir web typecheck",
+    "test:web": "pnpm --dir web test",
+    "test:server": "server/.venv/bin/python -m pytest server/tests",
+    "test:agent": "server/.venv/bin/python -m pytest agent/tests",
+    "test": "pnpm test:web && pnpm test:server && pnpm test:agent"
+  }
+}
