@@ -73,22 +73,25 @@ def _sha256_file(path: Path) -> str:
 
 
 def delete_job_media(task_id: str) -> None:
-    if cloud_transcription_service.enabled:
-        with db_session() as db:
-            row = db.execute(
-                """
-                SELECT fc_task_id, oss_media_key, oss_result_key
-                FROM server_transcription_jobs
-                WHERE task_id = ?
-                """,
-                (task_id,),
-            ).fetchone()
-        if row:
+    with db_session() as db:
+        row = db.execute(
+            """
+            SELECT j.fc_task_id, j.oss_media_key, j.oss_result_key, t.backend
+            FROM server_transcription_jobs j
+            JOIN tasks t ON t.id = j.task_id
+            WHERE j.task_id = ?
+            """,
+            (task_id,),
+        ).fetchone()
+    if row and row["backend"] == "fc":
+        try:
             cloud_transcription_service.stop(row["fc_task_id"])
             cloud_transcription_service.delete_objects(
                 row["oss_media_key"],
                 row["oss_result_key"],
             )
+        except Exception:
+            pass
     _remove_tree(_task_root(task_id))
 
 
@@ -179,6 +182,7 @@ def recover_stale_cloud_jobs() -> int:
                 FROM server_transcription_jobs j
                 JOIN tasks t ON t.id = j.task_id
                 WHERE t.status IN ('downloading', 'transcribing')
+                  AND t.backend = 'fc'
                   AND t.updated_at <= ?
             )
             """,
@@ -194,6 +198,7 @@ def recover_stale_cloud_jobs() -> int:
                 FROM server_transcription_jobs j
                 JOIN tasks t ON t.id = j.task_id
                 WHERE t.status = 'queued'
+                  AND t.backend = 'fc'
                   AND t.created_at <= ?
             )
             """,
@@ -305,14 +310,15 @@ async def create_transcription_task(
         db.execute(
             """
             INSERT INTO tasks(
-                id, user_id, device_id, original_name, size_bytes,
+                id, user_id, device_id, backend, original_name, size_bytes,
                 duration_ms, model_id, status, progress,
                 created_at, updated_at
-            ) VALUES (?, ?, NULL, ?, ?, ?, ?, 'queued', 0, ?, ?)
+            ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 'queued', 0, ?, ?)
             """,
             (
                 task_id,
                 user["id"],
+                "fc" if cloud_enabled else "server_local",
                 original_name,
                 expected_bytes,
                 result.duration_ms,
@@ -383,7 +389,7 @@ def task_transcription_metadata(task_id: str) -> dict[str, Any]:
     with db_session() as db:
         job = db.execute(
             """
-            SELECT j.*, t.status
+            SELECT j.*, t.status, t.backend
             FROM server_transcription_jobs j
             JOIN tasks t ON t.id = j.task_id
             WHERE j.task_id = ?
@@ -391,7 +397,38 @@ def task_transcription_metadata(task_id: str) -> dict[str, Any]:
             (task_id,),
         ).fetchone()
         if not job:
-            return {}
+            local_job = db.execute(
+                """
+                SELECT j.*, t.status
+                FROM local_douyin_jobs j
+                JOIN tasks t ON t.id = j.task_id
+                WHERE j.task_id = ?
+                """,
+                (task_id,),
+            ).fetchone()
+            if not local_job:
+                return {}
+            queue_position = None
+            if local_job["status"] == "queued":
+                queue_position = db.execute(
+                    """
+                    SELECT COUNT(*) AS count
+                    FROM local_douyin_jobs j
+                    JOIN tasks t ON t.id = j.task_id
+                    WHERE t.status = 'queued' AND j.created_at <= ?
+                    """,
+                    (local_job["created_at"],),
+                ).fetchone()["count"]
+            return {
+                "source_type": "douyin",
+                "media_available": False,
+                "media_expires_at": None,
+                "queue_position": queue_position,
+                "downloaded_bytes": local_job["downloaded_bytes"],
+                "download_total_bytes": local_job["download_total_bytes"],
+                "download_speed_bps": local_job["download_speed_bps"],
+                "download_eta_seconds": local_job["download_eta_seconds"],
+            }
         queue_position = None
         if job["status"] == "queued":
             queue_position = db.execute(
@@ -399,9 +436,10 @@ def task_transcription_metadata(task_id: str) -> dict[str, Any]:
                 SELECT COUNT(*) AS count
                 FROM server_transcription_jobs j
                 JOIN tasks t ON t.id = j.task_id
-                WHERE t.status = 'queued' AND j.created_at <= ?
+                WHERE t.status = 'queued' AND t.backend = ?
+                  AND j.created_at <= ?
                 """,
-                (job["created_at"],),
+                (job["backend"], job["created_at"]),
             ).fetchone()["count"]
 
     expires_at = (
@@ -442,13 +480,23 @@ def media_record(task_id: str) -> sqlite3.Row | None:
 async def retry_server_job(task_id: str, user: dict[str, Any]) -> bool:
     with db_session() as db:
         existing = db.execute(
-            "SELECT * FROM server_transcription_jobs WHERE task_id = ?",
+            """
+            SELECT j.*, t.backend
+            FROM server_transcription_jobs j
+            JOIN tasks t ON t.id = j.task_id
+            WHERE j.task_id = ?
+            """,
             (task_id,),
         ).fetchone()
     if not existing:
         return False
 
-    if cloud_transcription_service.enabled:
+    if existing["backend"] == "fc":
+        if not cloud_transcription_service.enabled:
+            raise TranscriptionError(
+                "该任务使用云端转写，但云端后端当前未启用。",
+                status_code=409,
+            )
         result = await douyin_service.resolve(user, existing["source_url"])
         quality = choose_transcription_quality(result)
         if (
@@ -631,6 +679,7 @@ class TranscriptionWorker:
                 FROM server_transcription_jobs j
                 JOIN tasks t ON t.id = j.task_id
                 WHERE t.status IN ('downloading', 'transcribing')
+                  AND t.backend = 'server_local'
                 """
             ).fetchall()
             for row in rows:
@@ -673,7 +722,7 @@ class TranscriptionWorker:
                 SELECT j.*, t.user_id
                 FROM server_transcription_jobs j
                 JOIN tasks t ON t.id = j.task_id
-                WHERE t.status = 'queued'
+                WHERE t.status = 'queued' AND t.backend = 'server_local'
                 ORDER BY j.created_at
                 LIMIT 1
                 """

@@ -15,6 +15,8 @@ import {
   type SegmentEditorHandle,
 } from "../components/SegmentEditor";
 import { api } from "../lib/api";
+import { douyinAgent } from "../lib/douyin-agent";
+import { downloadProgressText } from "../lib/download-progress";
 
 export function EditorPage() {
   const { taskId = "" } = useParams();
@@ -28,6 +30,8 @@ export function EditorPage() {
   const [videoUrl, setVideoUrl] = useState("");
   const [videoName, setVideoName] = useState("");
   const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState("");
+  const [localAssetUrl, setLocalAssetUrl] = useState("");
 
   const task = useQuery({
     queryKey: ["task", taskId],
@@ -50,7 +54,37 @@ export function EditorPage() {
   const segments = task.data?.segments ?? [];
   const effectiveVideoUrl =
     videoUrl ||
+    localAssetUrl ||
     (task.data?.media_available ? api.taskMediaUrl(taskId) : "");
+
+  useEffect(() => {
+    const data = task.data;
+    if (
+      !data ||
+      data.backend !== "local_agent" ||
+      !data.device_id ||
+      !data.device_assets.length
+    ) {
+      setLocalAssetUrl("");
+      return;
+    }
+    const controller = new AbortController();
+    void douyinAgent
+      .health(controller.signal)
+      .then(async (health) => {
+        if (health.device_id !== data.device_id) return;
+        const asset = data.device_assets.find(
+          (item) => item.device_id === data.device_id,
+        );
+        if (!asset) return;
+        const { token } = await api.commandToken(data.device_id!, taskId);
+        setLocalAssetUrl(
+          douyinAgent.assetUrl(asset.local_asset_id, taskId, token),
+        );
+      })
+      .catch(() => setLocalAssetUrl(""));
+    return () => controller.abort();
+  }, [task.data, taskId]);
 
   const active = segments.find(
     (segment) => currentMs >= segment.start_ms && currentMs < segment.end_ms,
@@ -103,9 +137,14 @@ export function EditorPage() {
 
   async function retry() {
     setRetrying(true);
+    setRetryError("");
     try {
       await api.retryTask(taskId);
       await task.refetch();
+    } catch (reason) {
+      setRetryError(
+        reason instanceof Error ? reason.message : "重新识别失败，请稍后再试。",
+      );
     } finally {
       setRetrying(false);
     }
@@ -130,7 +169,9 @@ export function EditorPage() {
             <span>
               {task.data.model_id === "imported-srt"
                 ? "SRT 导入"
-                : task.data.model_id}{" "}
+                : task.data.backend === "local_agent"
+                  ? `本机 ${task.data.model_id}`
+                  : task.data.model_id}{" "}
               · {segments.length} 条字幕
             </span>
           </div>
@@ -169,7 +210,15 @@ export function EditorPage() {
               {task.data.error ||
                 (task.data.status === "queued" && task.data.queue_position
                   ? `当前排在第 ${task.data.queue_position} 位，可以关闭页面稍后再回来。`
-                  : "服务器会自动完成处理，可以关闭页面稍后再回来。")}
+                  : task.data.backend === "local_agent"
+                    ? "请保持本机 Agent 运行；可以关闭网页，Agent 会继续处理。"
+                    : "服务器会自动完成处理，可以关闭页面稍后再回来。")}
+              {task.data.status === "downloading" &&
+                task.data.backend === "local_agent" && (
+                  <span className="download-progress-detail">
+                    {downloadProgressText(task.data)}
+                  </span>
+                )}
             </p>
             <div className="large-progress">
               <span style={{ width: `${task.data.progress}%` }} />
@@ -186,6 +235,7 @@ export function EditorPage() {
                 {retrying ? "正在重新排队…" : "重新识别"}
               </button>
             )}
+            {retryError && <div className="form-error">{retryError}</div>}
           </section>
         ) : (
           <div className="editor-workspace">
@@ -215,12 +265,16 @@ export function EditorPage() {
                   <FileQuestion size={36} />
                   <h2>
                     {task.data.source_type === "douyin"
-                      ? "校对视频已过期"
+                      ? task.data.backend === "local_agent"
+                        ? "未连接到保存视频的本机 Agent"
+                        : "校对视频已过期"
                       : "可选：选择本机原视频"}
                   </h2>
                   <p>
                     {task.data.source_type === "douyin"
-                      ? "服务器只保留视频 7 天，字幕仍可继续修改和导出。"
+                      ? task.data.backend === "local_agent"
+                        ? "启动完成转写的 Agent 后可直接播放；也可以手动选择本机视频。"
+                        : "服务器只保留视频 7 天，字幕仍可继续修改和导出。"
                       : "视频只在当前浏览器页面中播放，不会上传或保存到网站。"}
                   </p>
                   <label className="primary-button">

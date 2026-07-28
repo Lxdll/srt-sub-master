@@ -30,7 +30,17 @@ def _server_client() -> tuple[httpx.Client, dict[str, Any]]:
     return client, state
 
 
-def _progress(task_id: str, status: str, progress: float, error: str | None = None) -> None:
+def _progress(
+    task_id: str,
+    status: str,
+    progress: float,
+    error: str | None = None,
+    *,
+    downloaded_bytes: int | None = None,
+    download_total_bytes: int | None = None,
+    download_speed_bps: float | None = None,
+    download_eta_seconds: int | None = None,
+) -> None:
     with db_session() as db:
         db.execute(
             """
@@ -41,10 +51,23 @@ def _progress(task_id: str, status: str, progress: float, error: str | None = No
         )
     try:
         client, _ = _server_client()
+        payload = {
+            "status": status,
+            "progress": progress,
+            "error": error,
+        }
+        if downloaded_bytes is not None:
+            payload["downloaded_bytes"] = downloaded_bytes
+        if download_total_bytes is not None:
+            payload["download_total_bytes"] = download_total_bytes
+        if download_speed_bps is not None:
+            payload["download_speed_bps"] = download_speed_bps
+        if download_eta_seconds is not None:
+            payload["download_eta_seconds"] = download_eta_seconds
         with client:
             client.post(
                 f"/api/agent/tasks/{task_id}/progress",
-                json={"status": status, "progress": progress, "error": error},
+                json=payload,
             ).raise_for_status()
     except Exception:
         pass
@@ -150,9 +173,14 @@ def run_job(task_id: str) -> None:
         ).fetchone()
     if not row:
         return
-    _progress(task_id, "transcribing", 5)
+    start_progress = max(5.0, float(row["progress"]))
+    _progress(task_id, "transcribing", start_progress)
     try:
-        callback = lambda value: _progress(task_id, "transcribing", round(value, 1))
+        callback = lambda value: _progress(
+            task_id,
+            "transcribing",
+            max(start_progress, round(value, 1)),
+        )
         if platform.system() == "Darwin":
             segments = _transcribe_mlx(
                 Path(row["path"]), row["model_id"], row["duration_ms"], callback
@@ -185,4 +213,3 @@ def run_job(task_id: str) -> None:
 def queue_job(task_id: str) -> None:
     with job_lock:
         job_executor.submit(run_job, task_id)
-

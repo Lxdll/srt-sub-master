@@ -38,6 +38,7 @@ from .schemas import (
     AdminResetPasswordRequest,
     AttachAssetRequest,
     ChangePasswordRequest,
+    ClaimLocalDouyinTaskRequest,
     CreateTaskRequest,
     CreateUserRequest,
     CustomProhibitedWordRequest,
@@ -57,6 +58,13 @@ from .schemas import (
     TaskResultRequest,
     UpdateUserPermissionsRequest,
     VerifyCommandRequest,
+)
+from .local_agent_transcription import (
+    claim_local_douyin_task,
+    create_local_douyin_task,
+    recover_offline_local_jobs,
+    retry_local_douyin_task,
+    validate_local_douyin_result,
 )
 from .script_analysis import ScriptAnalysisError, script_analysis_service
 from .security import (
@@ -287,7 +295,26 @@ async def create_douyin_transcription(
     ensure_permission(user, "douyin_download")
     ensure_permission(user, "subtitle_workspace")
     try:
-        task_id = await create_transcription_task(user, payload.text)
+        if payload.backend == "local_agent":
+            if not payload.device_id or not payload.model_id:
+                raise TranscriptionError(
+                    "请选择已配对的本机 Agent 和本机模型。",
+                    status_code=400,
+                )
+            device = _device_for_user(payload.device_id, user["id"])
+            if not _device_online(device["last_seen_at"]):
+                raise TranscriptionError(
+                    "本机 Agent 当前离线，请启动 Agent 并等待连接后再试。",
+                    status_code=409,
+                )
+            task_id = await create_local_douyin_task(
+                user,
+                payload.text,
+                dict(device),
+                payload.model_id,
+            )
+        else:
+            task_id = await create_transcription_task(user, payload.text)
     except DouyinError as exc:
         raise _douyin_http_error(exc) from exc
     except TranscriptionError as exc:
@@ -823,9 +850,9 @@ def create_task(
         db.execute(
             """
             INSERT INTO tasks(
-                id, user_id, device_id, original_name, size_bytes,
+                id, user_id, device_id, backend, original_name, size_bytes,
                 model_id, status, progress, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 'uploading', 0, ?, ?)
+            ) VALUES (?, ?, ?, 'local_agent', ?, ?, ?, 'uploading', 0, ?, ?)
             """,
             (
                 task_id,
@@ -850,6 +877,7 @@ def _serialize_task(row: sqlite3.Row) -> dict[str, Any]:
     result = {
         "id": row["id"],
         "device_id": row["device_id"],
+        "backend": row["backend"],
         "original_name": row["original_name"],
         "size_bytes": row["size_bytes"],
         "duration_ms": row["duration_ms"],
@@ -869,6 +897,7 @@ def _serialize_task(row: sqlite3.Row) -> dict[str, Any]:
 def list_tasks(user: dict[str, Any] = Depends(current_user)) -> list[dict[str, Any]]:
     ensure_permission(user, "subtitle_workspace")
     recover_stale_cloud_jobs()
+    recover_offline_local_jobs()
     with db_session() as db:
         rows = db.execute(
             "SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC",
@@ -910,10 +939,13 @@ async def import_srt(
         db.execute(
             """
             INSERT INTO tasks(
-                id, user_id, device_id, original_name, size_bytes,
+                id, user_id, device_id, backend, original_name, size_bytes,
                 duration_ms, sha256, model_id, status, progress,
                 created_at, updated_at
-            ) VALUES (?, ?, NULL, ?, ?, ?, ?, 'imported-srt', 'ready', 100, ?, ?)
+            ) VALUES (
+                ?, ?, NULL, 'imported', ?, ?, ?, ?,
+                'imported-srt', 'ready', 100, ?, ?
+            )
             """,
             (
                 task_id,
@@ -957,6 +989,7 @@ def get_task(
 ) -> dict[str, Any]:
     ensure_permission(user, "subtitle_workspace")
     recover_stale_cloud_jobs()
+    recover_offline_local_jobs()
     task = _task_for_user(task_id, user["id"])
     with db_session() as db:
         segments = db.execute(
@@ -1072,6 +1105,22 @@ async def retry_task(
     task = _task_for_user(task_id, user["id"])
     if task["status"] != "failed":
         raise HTTPException(status_code=409, detail="Only failed tasks can be retried")
+    if task["backend"] == "local_agent" and task["device_id"]:
+        device = _device_for_user(task["device_id"], user["id"])
+        if not _device_online(device["last_seen_at"]):
+            raise HTTPException(
+                status_code=409,
+                detail="本机 Agent 当前离线，请启动 Agent 后再重试。",
+            )
+        try:
+            await retry_local_douyin_task(dict(task), dict(device), user)
+            return {"ok": True}
+        except TranscriptionError as exc:
+            if exc.status_code != 404:
+                raise HTTPException(
+                    status_code=exc.status_code,
+                    detail=str(exc),
+                ) from exc
     try:
         if await retry_server_job(task_id, user):
             return {"ok": True}
@@ -1258,13 +1307,48 @@ def agent_heartbeat(
     return {"ok": True}
 
 
+@app.post("/api/agent/tasks/{task_id}/claim-douyin")
+def agent_claim_douyin_task(
+    task_id: str,
+    payload: ClaimLocalDouyinTaskRequest,
+    device: dict[str, Any] = Depends(agent_device),
+) -> dict[str, Any]:
+    ensure_user_id_permission(device["user_id"], "subtitle_workspace")
+    try:
+        return claim_local_douyin_task(task_id, device, payload.token)
+    except TranscriptionError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
 @app.post("/api/agent/tasks/{task_id}/progress")
 def agent_task_progress(
     task_id: str,
     payload: TaskProgressRequest,
     device: dict[str, Any] = Depends(agent_device),
 ) -> dict[str, bool]:
-    _ensure_agent_task(task_id, device)
+    task = _ensure_agent_task(task_id, device)
+    if task["backend"] == "local_agent":
+        if payload.status == "ready":
+            raise HTTPException(
+                status_code=409,
+                detail="本机任务必须通过结果接口完成。",
+            )
+        if task["status"] == "ready":
+            return {"ok": True}
+        if payload.status not in {"downloading", "transcribing", "failed", "queued"}:
+            raise HTTPException(status_code=422, detail="本机任务状态无效。")
+        if (
+            payload.downloaded_bytes is not None
+            and payload.download_total_bytes
+            and payload.downloaded_bytes > payload.download_total_bytes
+        ):
+            raise HTTPException(status_code=422, detail="本机下载进度数据无效。")
+        if (
+            payload.download_total_bytes is not None
+            and payload.download_total_bytes
+            > settings.transcription_max_source_bytes
+        ):
+            raise HTTPException(status_code=422, detail="本机下载文件超过限制。")
     with db_session() as db:
         db.execute(
             """
@@ -1274,6 +1358,34 @@ def agent_task_progress(
             """,
             (payload.status, payload.progress, payload.error, utc_now(), task_id),
         )
+        if task["backend"] == "local_agent" and any(
+            value is not None
+            for value in (
+                payload.downloaded_bytes,
+                payload.download_total_bytes,
+                payload.download_speed_bps,
+                payload.download_eta_seconds,
+            )
+        ):
+            db.execute(
+                """
+                UPDATE local_douyin_jobs
+                SET downloaded_bytes = COALESCE(?, downloaded_bytes),
+                    download_total_bytes = COALESCE(?, download_total_bytes),
+                    download_speed_bps = COALESCE(?, download_speed_bps),
+                    download_eta_seconds = ?,
+                    updated_at = ?
+                WHERE task_id = ?
+                """,
+                (
+                    payload.downloaded_bytes,
+                    payload.download_total_bytes,
+                    payload.download_speed_bps,
+                    payload.download_eta_seconds,
+                    utc_now(),
+                    task_id,
+                ),
+            )
     return {"ok": True}
 
 
@@ -1283,9 +1395,98 @@ def agent_task_result(
     payload: TaskResultRequest,
     device: dict[str, Any] = Depends(agent_device),
 ) -> dict[str, bool]:
-    _ensure_agent_task(task_id, device)
+    task = _ensure_agent_task(task_id, device)
+    if not payload.segments or len(payload.segments) > 20_000:
+        raise HTTPException(status_code=422, detail="字幕段数量无效。")
+    if any(
+        segment.end_ms <= segment.start_ms
+        or segment.end_ms > payload.duration_ms + 1_000
+        or not segment.text.strip()
+        or len(segment.text) > 10_000
+        for segment in payload.segments
+    ):
+        raise HTTPException(status_code=422, detail="字幕段内容或时间轴无效。")
+    local_job = None
+    try:
+        local_job = validate_local_douyin_result(
+            task_id,
+            duration_ms=payload.duration_ms,
+            size_bytes=payload.size_bytes,
+        )
+    except TranscriptionError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    if local_job and task["status"] == "ready":
+        with db_session() as db:
+            asset = db.execute(
+                """
+                SELECT sha256, duration_ms, size_bytes
+                FROM device_assets
+                WHERE task_id = ? AND device_id = ?
+                """,
+                (task_id, device["id"]),
+            ).fetchone()
+        if (
+            asset
+            and asset["sha256"] == payload.sha256
+            and asset["duration_ms"] == payload.duration_ms
+            and asset["size_bytes"] == payload.size_bytes
+        ):
+            return {"ok": True, "processed": False}
+        raise HTTPException(
+            status_code=409,
+            detail="任务已经由不同结果完成。",
+        )
+    if local_job and task["status"] not in {"downloading", "transcribing"}:
+        raise HTTPException(status_code=409, detail="本机任务当前不能提交结果。")
     now = utc_now()
     with db_session() as db:
+        if local_job:
+            db.execute("BEGIN IMMEDIATE")
+            current = db.execute(
+                """
+                SELECT j.completed_at, t.status
+                FROM local_douyin_jobs j
+                JOIN tasks t ON t.id = j.task_id
+                WHERE j.task_id = ?
+                """,
+                (task_id,),
+            ).fetchone()
+            if current and current["completed_at"]:
+                asset = db.execute(
+                    """
+                    SELECT sha256, duration_ms, size_bytes
+                    FROM device_assets
+                    WHERE task_id = ? AND device_id = ?
+                    """,
+                    (task_id, device["id"]),
+                ).fetchone()
+                if (
+                    asset
+                    and asset["sha256"] == payload.sha256
+                    and asset["duration_ms"] == payload.duration_ms
+                    and asset["size_bytes"] == payload.size_bytes
+                ):
+                    return {"ok": True, "processed": False}
+                raise HTTPException(
+                    status_code=409,
+                    detail="任务已经由不同结果完成。",
+                )
+            if not current or current["status"] not in {
+                "downloading",
+                "transcribing",
+            }:
+                raise HTTPException(
+                    status_code=409,
+                    detail="本机任务当前不能提交结果。",
+                )
+            db.execute(
+                """
+                UPDATE local_douyin_jobs
+                SET completed_at = ?, updated_at = ?
+                WHERE task_id = ? AND completed_at IS NULL
+                """,
+                (now, now, task_id),
+            )
         db.execute("DELETE FROM segments WHERE task_id = ?", (task_id,))
         db.executemany(
             """
@@ -1346,7 +1547,7 @@ def agent_task_result(
                 now,
             ),
         )
-    return {"ok": True}
+    return {"ok": True, "processed": True}
 
 
 @app.post("/api/agent/tasks/{task_id}/attach")

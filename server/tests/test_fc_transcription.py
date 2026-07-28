@@ -28,9 +28,9 @@ def _create_cloud_job(client: TestClient) -> tuple[str, str]:
         db.execute(
             """
             INSERT INTO tasks(
-                id, user_id, device_id, original_name, size_bytes,
+                id, user_id, device_id, backend, original_name, size_bytes,
                 duration_ms, model_id, status, progress, created_at, updated_at
-            ) VALUES (?, ?, NULL, 'cloud.mp4', 100, 4000,
+            ) VALUES (?, ?, NULL, 'fc', 'cloud.mp4', 100, 4000,
                       'whisper-small-q5_1', 'queued', 0, ?, ?)
             """,
             (task_id, user_id, now, now),

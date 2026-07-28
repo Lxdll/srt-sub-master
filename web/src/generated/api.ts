@@ -535,6 +535,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/agent/tasks/{task_id}/claim-douyin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Agent Claim Douyin Task */
+        post: operations["agent_claim_douyin_task_api_agent_tasks__task_id__claim_douyin_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agent/tasks/{task_id}/progress": {
         parameters: {
             query?: never;
@@ -621,6 +638,11 @@ export interface components {
             /** New Password */
             new_password: string;
         };
+        /** ClaimLocalDouyinTaskRequest */
+        ClaimLocalDouyinTaskRequest: {
+            /** Token */
+            token: string;
+        };
         /** CreateTaskRequest */
         CreateTaskRequest: {
             /** Device Id */
@@ -705,6 +727,16 @@ export interface components {
         DouyinTranscriptionRequest: {
             /** Text */
             text: string;
+            /**
+             * Backend
+             * @default server
+             * @enum {string}
+             */
+            backend: "server" | "local_agent";
+            /** Device Id */
+            device_id?: string | null;
+            /** Model Id */
+            model_id?: ("small" | "large-v3" | "large-v3-turbo") | null;
         };
         /** DouyinTranscriptionResponse */
         DouyinTranscriptionResponse: {
@@ -919,6 +951,14 @@ export interface components {
             progress: number;
             /** Error */
             error?: string | null;
+            /** Downloaded Bytes */
+            downloaded_bytes?: number | null;
+            /** Download Total Bytes */
+            download_total_bytes?: number | null;
+            /** Download Speed Bps */
+            download_speed_bps?: number | null;
+            /** Download Eta Seconds */
+            download_eta_seconds?: number | null;
         };
         /** TaskResultRequest */
         TaskResultRequest: {
@@ -2172,6 +2212,45 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: boolean;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    agent_claim_douyin_task_api_agent_tasks__task_id__claim_douyin_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClaimLocalDouyinTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
                     };
                 };
             };

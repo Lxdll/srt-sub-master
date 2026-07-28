@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     device_id TEXT REFERENCES devices(id) ON DELETE SET NULL,
+    backend TEXT NOT NULL DEFAULT 'local_agent',
     original_name TEXT NOT NULL,
     size_bytes INTEGER NOT NULL,
     duration_ms INTEGER,
@@ -89,6 +90,29 @@ CREATE TABLE IF NOT EXISTS server_transcription_jobs (
 
 CREATE INDEX IF NOT EXISTS idx_server_transcription_jobs_created
 ON server_transcription_jobs(created_at);
+
+CREATE TABLE IF NOT EXISTS local_douyin_jobs (
+    task_id TEXT PRIMARY KEY REFERENCES tasks(id) ON DELETE CASCADE,
+    source_url TEXT NOT NULL,
+    source_urls_json TEXT NOT NULL DEFAULT '[]',
+    aweme_id TEXT NOT NULL,
+    expected_size_bytes INTEGER NOT NULL DEFAULT 0,
+    expected_duration_ms INTEGER,
+    downloaded_bytes INTEGER NOT NULL DEFAULT 0,
+    download_total_bytes INTEGER NOT NULL DEFAULT 0,
+    download_speed_bps REAL NOT NULL DEFAULT 0,
+    download_eta_seconds INTEGER,
+    claim_token_hash TEXT,
+    claim_receipt_hash TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    claimed_at TEXT,
+    completed_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_local_douyin_jobs_created
+ON local_douyin_jobs(created_at);
 
 CREATE TABLE IF NOT EXISTS fc_callback_receipts (
     nonce TEXT PRIMARY KEY,
@@ -173,6 +197,29 @@ def initialize_database() -> None:
             """
         ).fetchone()
         connection.executescript(SCHEMA)
+        task_columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(tasks)").fetchall()
+        }
+        if "backend" not in task_columns:
+            connection.execute(
+                "ALTER TABLE tasks "
+                "ADD COLUMN backend TEXT NOT NULL DEFAULT 'local_agent'"
+            )
+            connection.execute(
+                "UPDATE tasks SET backend = 'imported' "
+                "WHERE model_id = 'imported-srt'"
+            )
+            server_backend = (
+                "fc" if settings.transcription_backend == "fc" else "server_local"
+            )
+            connection.execute(
+                """
+                UPDATE tasks SET backend = ?
+                WHERE id IN (SELECT task_id FROM server_transcription_jobs)
+                """,
+                (server_backend,),
+            )
         job_columns = {
             row["name"]
             for row in connection.execute(
@@ -189,6 +236,23 @@ def initialize_database() -> None:
                 connection.execute(
                     f"ALTER TABLE server_transcription_jobs "
                     f"ADD COLUMN {name} {definition}"
+                )
+        local_job_columns = {
+            row["name"]
+            for row in connection.execute(
+                "PRAGMA table_info(local_douyin_jobs)"
+            ).fetchall()
+        }
+        for name, definition in (
+            ("source_urls_json", "TEXT NOT NULL DEFAULT '[]'"),
+            ("downloaded_bytes", "INTEGER NOT NULL DEFAULT 0"),
+            ("download_total_bytes", "INTEGER NOT NULL DEFAULT 0"),
+            ("download_speed_bps", "REAL NOT NULL DEFAULT 0"),
+            ("download_eta_seconds", "INTEGER"),
+        ):
+            if name not in local_job_columns:
+                connection.execute(
+                    f"ALTER TABLE local_douyin_jobs ADD COLUMN {name} {definition}"
                 )
         if not permissions_table_existed:
             for permission_key in ("subtitle_workspace", "douyin_download"):

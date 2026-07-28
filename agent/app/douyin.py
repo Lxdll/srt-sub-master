@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
+import ipaddress
+import socket
 from typing import Any, AsyncIterator
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
@@ -29,6 +32,45 @@ class LocalDownloadStream:
                 yield chunk
         finally:
             await self.response.aclose()
+
+
+async def _public_https_redirect_allowed(url: str) -> bool:
+    parsed = urlparse(url)
+    try:
+        port = parsed.port or 443
+    except ValueError:
+        return False
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or not 1 <= port <= 65_535
+    ):
+        return False
+    hostname = parsed.hostname.lower().rstrip(".")
+    if hostname == "localhost" or hostname.endswith(".local"):
+        return False
+    try:
+        addresses = [ipaddress.ip_address(hostname)]
+    except ValueError:
+        try:
+            records = await asyncio.to_thread(
+                socket.getaddrinfo,
+                hostname,
+                port,
+                type=socket.SOCK_STREAM,
+            )
+        except OSError:
+            return False
+        addresses = list(
+            {
+                ipaddress.ip_address(record[4][0])
+                for record in records
+                if record[4]
+            }
+        )
+    return bool(addresses) and all(address.is_global for address in addresses)
 
 
 class LocalDouyinService:
@@ -75,6 +117,7 @@ class LocalDouyinService:
         self,
         quality: Quality,
         range_header: str | None,
+        extra_hosts: set[str] | None = None,
     ) -> httpx.Response:
         headers = {
             "User-Agent": DEFAULT_USER_AGENT,
@@ -83,10 +126,17 @@ class LocalDouyinService:
         }
         if range_header:
             headers["Range"] = range_header
+        unsafe_redirect = False
+        rejected_status: int | None = None
         for source in quality.source_urls:
             current = source
             for _ in range(4):
-                if not is_media_url_allowed(current):
+                if current == source:
+                    allowed = is_media_url_allowed(current, extra_hosts)
+                else:
+                    allowed = await _public_https_redirect_allowed(current)
+                if not allowed:
+                    unsafe_redirect = True
                     break
                 request = self.client.build_request("GET", current, headers=headers)
                 response = await self.client.send(request, stream=True)
@@ -98,12 +148,31 @@ class LocalDouyinService:
                     current = urljoin(current, location)
                     continue
                 if response.status_code in {200, 206}:
-                    return response
+                    content_type = response.headers.get("content-type", "").lower()
+                    if (
+                        content_type.startswith("video/")
+                        or content_type.startswith("application/octet-stream")
+                        or not content_type
+                    ):
+                        return response
+                rejected_status = response.status_code
                 await response.aclose()
                 break
+        if unsafe_redirect:
+            raise DouyinError(
+                "视频源跳转到了不安全的地址，本机已停止下载。",
+                code="UNSAFE_VIDEO_REDIRECT",
+                status_code=502,
+            )
+        if rejected_status in {401, 403, 404, 410}:
+            raise DouyinError(
+                "本机视频源已经失效，请重新解析。",
+                code="VIDEO_SOURCE_EXPIRED",
+                status_code=502,
+            )
         raise DouyinError(
-            "本机视频源已经失效，请重新解析。",
-            code="VIDEO_SOURCE_EXPIRED",
+            "本机暂时无法下载该视频，请稍后重试。",
+            code="VIDEO_SOURCE_FAILED",
             status_code=502,
         )
 
@@ -134,6 +203,94 @@ class LocalDouyinService:
                 quality.label,
             ),
         )
+
+    async def open_result_source(
+        self,
+        result: ParseResult,
+        quality: Quality,
+    ) -> httpx.Response:
+        return await self._open_source(quality, None)
+
+    async def open_authorized_source(
+        self,
+        quality: Quality,
+        extra_hosts: set[str] | None = None,
+    ) -> httpx.Response:
+        if not quality.source_urls or any(
+            not is_media_url_allowed(source, extra_hosts)
+            for source in quality.source_urls
+        ):
+            raise DouyinError(
+                "服务器授权的视频来源无效。",
+                code="INVALID_AUTHORIZED_SOURCE",
+                status_code=400,
+            )
+        return await self._open_source(quality, None, extra_hosts)
+
+    async def open_smallest_authorized_source(
+        self,
+        quality: Quality,
+        extra_hosts: set[str] | None = None,
+    ) -> httpx.Response:
+        if not quality.source_urls or any(
+            not is_media_url_allowed(source, extra_hosts)
+            for source in quality.source_urls
+        ):
+            raise DouyinError(
+                "服务器授权的视频来源无效。",
+                code="INVALID_AUTHORIZED_SOURCE",
+                status_code=400,
+            )
+        measured: list[tuple[int, str]] = []
+        unmeasured: list[str] = []
+        for source in quality.source_urls:
+            candidate = Quality(
+                id=quality.id,
+                label=quality.label,
+                width=quality.width,
+                height=quality.height,
+                bitrate=quality.bitrate,
+                estimated_bytes=quality.estimated_bytes,
+                source_urls=(source,),
+            )
+            try:
+                response = await self._open_source(
+                    candidate,
+                    "bytes=0-0",
+                    extra_hosts,
+                )
+            except DouyinError:
+                unmeasured.append(source)
+                continue
+            content_range = response.headers.get("content-range", "")
+            total_text = content_range.rsplit("/", 1)[-1] if "/" in content_range else ""
+            total = int(total_text) if total_text.isdigit() else 0
+            if not total and response.status_code == 200:
+                total = int(response.headers.get("content-length") or 0)
+            await response.aclose()
+            if total:
+                measured.append((total, source))
+            else:
+                unmeasured.append(source)
+        ordered_sources = [
+            source for _, source in sorted(measured, key=lambda item: item[0])
+        ] + unmeasured
+        if not ordered_sources:
+            return await self._open_source(quality, None, extra_hosts)
+        selected = Quality(
+            id=quality.id,
+            label=quality.label,
+            width=quality.width,
+            height=quality.height,
+            bitrate=quality.bitrate,
+            estimated_bytes=(
+                min(size for size, _ in measured)
+                if measured
+                else quality.estimated_bytes
+            ),
+            source_urls=tuple(ordered_sources),
+        )
+        return await self._open_source(selected, None, extra_hosts)
 
 
 local_douyin_service = LocalDouyinService()
