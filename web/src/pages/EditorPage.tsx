@@ -16,6 +16,7 @@ import {
 } from "../components/SegmentEditor";
 import { api } from "../lib/api";
 import { douyinAgent } from "../lib/douyin-agent";
+import { downloadProgressText } from "../lib/download-progress";
 
 export function EditorPage() {
   const { taskId = "" } = useParams();
@@ -212,6 +213,12 @@ export function EditorPage() {
                   : task.data.backend === "local_agent"
                     ? "请保持本机 Agent 运行；可以关闭网页，Agent 会继续处理。"
                     : "服务器会自动完成处理，可以关闭页面稍后再回来。")}
+              {task.data.status === "downloading" &&
+                task.data.backend === "local_agent" && (
+                  <span className="download-progress-detail">
+                    {downloadProgressText(task.data)}
+                  </span>
+                )}
             </p>
             <div className="large-progress">
               <span style={{ width: `${task.data.progress}%` }} />

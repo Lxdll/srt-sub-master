@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { downloadProgressText } from "../lib/download-progress";
 import type { Task } from "../types";
 
 interface TaskListProps {
@@ -73,6 +74,12 @@ export function TaskList({ tasks, onChanged }: TaskListProps) {
                 {" · "}
                 {new Date(task.created_at).toLocaleString("zh-CN")}
               </span>
+              {task.status === "downloading" &&
+                task.backend === "local_agent" && (
+                  <span className="task-download-detail">
+                    {downloadProgressText(task)}
+                  </span>
+                )}
               {task.error && <span className="task-error">{task.error}</span>}
             </div>
             <div className={`task-status ${task.status}`}>

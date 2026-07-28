@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi.testclient import TestClient
 
 from server.app.db import db_session
 from server.app.douyin import douyin_service
+from server.app.local_agent_transcription import _compact_transcription_sources
 from server.app.transcription import TranscriptionWorker
 from server.tests.conftest import login
 from server.tests.test_transcription import CDN_URL, VIDEO_URL, result
@@ -89,6 +91,26 @@ def _claim_token(task_id: str) -> str:
     return json.loads(command["payload_json"])["claim_token"]
 
 
+def test_local_transcription_prefers_compact_douyin_playback_source():
+    original = (
+        "https://aweme.snssdk.com/aweme/v1/play/"
+        "?video_id=video-1&ratio=720p&line=0"
+    )
+    quality = result().qualities[0].__class__(
+        id="original",
+        label="推荐画质",
+        width=None,
+        height=None,
+        bitrate=None,
+        estimated_bytes=None,
+        source_urls=(original,),
+    )
+    sources = _compact_transcription_sources(quality)
+    assert len(sources) == 2
+    assert parse_qs(urlparse(sources[0]).query)["ratio"] == ["480p"]
+    assert sources[1] == original
+
+
 @pytest.mark.asyncio
 async def test_local_claim_is_scoped_and_completion_is_idempotent(
     client: TestClient,
@@ -136,6 +158,37 @@ async def test_local_claim_is_scoped_and_completion_is_idempotent(
     assert claimed.json()["source_urls"] == [CDN_URL]
     assert claimed.json()["model_id"] == "large-v3-turbo"
     assert claimed.json()["replayed"] is False
+
+    progress = client.post(
+        f"/api/agent/tasks/{task_id}/progress",
+        headers=headers,
+        json={
+            "status": "downloading",
+            "progress": 8,
+            "downloaded_bytes": 500_000,
+            "download_total_bytes": 2_000_000,
+            "download_speed_bps": 250_000,
+            "download_eta_seconds": 6,
+        },
+    )
+    assert progress.status_code == 200
+    progress_detail = client.get(f"/api/tasks/{task_id}").json()
+    assert progress_detail["downloaded_bytes"] == 500_000
+    assert progress_detail["download_total_bytes"] == 2_000_000
+    assert progress_detail["download_speed_bps"] == 250_000
+    assert progress_detail["download_eta_seconds"] == 6
+
+    invalid_progress = client.post(
+        f"/api/agent/tasks/{task_id}/progress",
+        headers=headers,
+        json={
+            "status": "downloading",
+            "progress": 8,
+            "downloaded_bytes": 2_000_001,
+            "download_total_bytes": 2_000_000,
+        },
+    )
+    assert invalid_progress.status_code == 422
 
     replay = client.post(
         f"/api/agent/tasks/{task_id}/claim-douyin",

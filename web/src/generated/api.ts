@@ -816,6 +816,14 @@ export interface components {
             progress: number;
             /** Error */
             error?: string | null;
+            /** Downloaded Bytes */
+            downloaded_bytes?: number | null;
+            /** Download Total Bytes */
+            download_total_bytes?: number | null;
+            /** Download Speed Bps */
+            download_speed_bps?: number | null;
+            /** Download Eta Seconds */
+            download_eta_seconds?: number | null;
         };
         /** TaskResultRequest */
         TaskResultRequest: {

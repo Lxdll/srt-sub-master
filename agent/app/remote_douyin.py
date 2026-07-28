@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import math
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -140,12 +142,25 @@ async def start_remote_douyin_job(task_id: str, claim_token: str) -> None:
         temporary = directory / "source.downloading"
         digest = hashlib.sha256()
         received = 0
-        reported = 2
-        upstream = await local_douyin_service.open_authorized_source(quality)
+        upstream = await local_douyin_service.open_smallest_authorized_source(quality)
         total = int(upstream.headers.get("content-length") or 0)
         if total > max_bytes:
             await upstream.aclose()
             raise RuntimeError("视频文件超过任务大小限制。")
+        if total:
+            _ensure_disk_space(total)
+        await asyncio.to_thread(
+            _progress,
+            task_id,
+            "downloading",
+            2,
+            downloaded_bytes=0,
+            download_total_bytes=total,
+            download_speed_bps=0,
+        )
+        last_sample_at = time.monotonic()
+        last_sample_bytes = 0
+        smoothed_speed = 0.0
         try:
             with temporary.open("wb") as output:
                 async for chunk in upstream.aiter_bytes(256 * 1024):
@@ -154,20 +169,55 @@ async def start_remote_douyin_job(task_id: str, claim_token: str) -> None:
                         raise RuntimeError("视频文件超过任务大小限制，下载已停止。")
                     digest.update(chunk)
                     output.write(chunk)
-                    if total:
-                        progress = round(2 + min(18, received / total * 18))
-                        if progress >= reported + 2:
-                            reported = progress
-                            await asyncio.to_thread(
-                                _progress,
-                                task_id,
-                                "downloading",
-                                progress,
-                            )
+                    sample_at = time.monotonic()
+                    if sample_at - last_sample_at >= 1 or (
+                        total and received >= total
+                    ):
+                        elapsed = max(0.001, sample_at - last_sample_at)
+                        instant_speed = (
+                            received - last_sample_bytes
+                        ) / elapsed
+                        smoothed_speed = (
+                            instant_speed
+                            if smoothed_speed <= 0
+                            else smoothed_speed * 0.7 + instant_speed * 0.3
+                        )
+                        progress = (
+                            round(2 + min(18, received / total * 18), 1)
+                            if total
+                            else 2
+                        )
+                        eta = (
+                            math.ceil((total - received) / smoothed_speed)
+                            if total > received and smoothed_speed > 0
+                            else 0
+                        )
+                        await asyncio.to_thread(
+                            _progress,
+                            task_id,
+                            "downloading",
+                            progress,
+                            downloaded_bytes=received,
+                            download_total_bytes=total,
+                            download_speed_bps=round(smoothed_speed, 1),
+                            download_eta_seconds=eta,
+                        )
+                        last_sample_at = sample_at
+                        last_sample_bytes = received
         finally:
             await upstream.aclose()
         if received <= 0:
             raise RuntimeError("本机下载的视频为空。")
+        await asyncio.to_thread(
+            _progress,
+            task_id,
+            "downloading",
+            20,
+            downloaded_bytes=received,
+            download_total_bytes=total or received,
+            download_speed_bps=round(smoothed_speed, 1),
+            download_eta_seconds=0,
+        )
         temporary.replace(destination)
 
         try:

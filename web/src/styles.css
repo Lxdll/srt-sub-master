@@ -1972,6 +1972,11 @@ textarea:focus {
   white-space: nowrap;
 }
 
+.task-name .task-download-detail {
+  color: var(--accent-dark);
+  font-variant-numeric: tabular-nums;
+}
+
 .task-status {
   display: inline-flex;
   width: max-content;
@@ -3077,6 +3082,15 @@ textarea:focus {
   margin: -70px 0 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+.download-progress-detail {
+  display: block;
+  margin-top: 10px;
+  color: var(--accent-dark);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 .processing-panel > .primary-button {

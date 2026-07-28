@@ -1304,6 +1304,18 @@ def agent_task_progress(
             return {"ok": True}
         if payload.status not in {"downloading", "transcribing", "failed", "queued"}:
             raise HTTPException(status_code=422, detail="本机任务状态无效。")
+        if (
+            payload.downloaded_bytes is not None
+            and payload.download_total_bytes
+            and payload.downloaded_bytes > payload.download_total_bytes
+        ):
+            raise HTTPException(status_code=422, detail="本机下载进度数据无效。")
+        if (
+            payload.download_total_bytes is not None
+            and payload.download_total_bytes
+            > settings.transcription_max_source_bytes
+        ):
+            raise HTTPException(status_code=422, detail="本机下载文件超过限制。")
     with db_session() as db:
         db.execute(
             """
@@ -1313,6 +1325,34 @@ def agent_task_progress(
             """,
             (payload.status, payload.progress, payload.error, utc_now(), task_id),
         )
+        if task["backend"] == "local_agent" and any(
+            value is not None
+            for value in (
+                payload.downloaded_bytes,
+                payload.download_total_bytes,
+                payload.download_speed_bps,
+                payload.download_eta_seconds,
+            )
+        ):
+            db.execute(
+                """
+                UPDATE local_douyin_jobs
+                SET downloaded_bytes = COALESCE(?, downloaded_bytes),
+                    download_total_bytes = COALESCE(?, download_total_bytes),
+                    download_speed_bps = COALESCE(?, download_speed_bps),
+                    download_eta_seconds = ?,
+                    updated_at = ?
+                WHERE task_id = ?
+                """,
+                (
+                    payload.downloaded_bytes,
+                    payload.download_total_bytes,
+                    payload.download_speed_bps,
+                    payload.download_eta_seconds,
+                    utc_now(),
+                    task_id,
+                ),
+            )
     return {"ok": True}
 
 

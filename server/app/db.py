@@ -98,6 +98,10 @@ CREATE TABLE IF NOT EXISTS local_douyin_jobs (
     aweme_id TEXT NOT NULL,
     expected_size_bytes INTEGER NOT NULL DEFAULT 0,
     expected_duration_ms INTEGER,
+    downloaded_bytes INTEGER NOT NULL DEFAULT 0,
+    download_total_bytes INTEGER NOT NULL DEFAULT 0,
+    download_speed_bps REAL NOT NULL DEFAULT 0,
+    download_eta_seconds INTEGER,
     claim_token_hash TEXT,
     claim_receipt_hash TEXT,
     attempts INTEGER NOT NULL DEFAULT 0,
@@ -239,11 +243,17 @@ def initialize_database() -> None:
                 "PRAGMA table_info(local_douyin_jobs)"
             ).fetchall()
         }
-        if "source_urls_json" not in local_job_columns:
-            connection.execute(
-                "ALTER TABLE local_douyin_jobs "
-                "ADD COLUMN source_urls_json TEXT NOT NULL DEFAULT '[]'"
-            )
+        for name, definition in (
+            ("source_urls_json", "TEXT NOT NULL DEFAULT '[]'"),
+            ("downloaded_bytes", "INTEGER NOT NULL DEFAULT 0"),
+            ("download_total_bytes", "INTEGER NOT NULL DEFAULT 0"),
+            ("download_speed_bps", "REAL NOT NULL DEFAULT 0"),
+            ("download_eta_seconds", "INTEGER"),
+        ):
+            if name not in local_job_columns:
+                connection.execute(
+                    f"ALTER TABLE local_douyin_jobs ADD COLUMN {name} {definition}"
+                )
         if not permissions_table_existed:
             for permission_key in ("subtitle_workspace", "douyin_download"):
                 connection.execute(

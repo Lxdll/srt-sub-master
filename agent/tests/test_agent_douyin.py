@@ -2,13 +2,15 @@ from __future__ import annotations
 
 # Agent-side contract tests use a distinct module name from server tests.
 import asyncio
+import json
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from agent.app import main, remote_douyin
+from agent.app import main, remote_douyin, transcriber
 from agent.app.config import save_state
+from agent.app.db import initialize_database
 from agent.app import douyin as agent_douyin
 from agent.app.douyin import local_douyin_service
 from douyin_engine import DouyinError, ParseResult, Quality
@@ -58,6 +60,46 @@ def test_remote_claim_uses_only_server_authorized_media_sources():
                 "expected_size_bytes": 8,
             }
         )
+
+
+def test_agent_reports_download_metrics(monkeypatch: pytest.MonkeyPatch):
+    initialize_database()
+    reported: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        reported.append(json.loads(request.content))
+        return httpx.Response(200, json={"ok": True})
+
+    def server_client():
+        return (
+            httpx.Client(
+                base_url="https://subtitles.test",
+                transport=httpx.MockTransport(handler),
+            ),
+            {},
+        )
+
+    monkeypatch.setattr(transcriber, "_server_client", server_client)
+    transcriber._progress(
+        "task-download",
+        "downloading",
+        8,
+        downloaded_bytes=500_000,
+        download_total_bytes=2_000_000,
+        download_speed_bps=250_000,
+        download_eta_seconds=6,
+    )
+    assert reported == [
+        {
+            "status": "downloading",
+            "progress": 8,
+            "error": None,
+            "downloaded_bytes": 500_000,
+            "download_total_bytes": 2_000_000,
+            "download_speed_bps": 250_000,
+            "download_eta_seconds": 6,
+        }
+    ]
 
 
 @pytest.mark.asyncio
@@ -206,6 +248,58 @@ async def test_authorized_source_rejects_private_or_untrusted_redirect(
     finally:
         await local_douyin_service.client.aclose()
         local_douyin_service.client = old_client
+
+
+@pytest.mark.asyncio
+async def test_authorized_sources_probe_and_download_smallest_candidate():
+    large_url = "https://v5-se.douyinvod.com/video/large.mp4"
+    small_url = "https://v5-se.douyinvod.com/video/small.mp4"
+    full_downloads: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        size = 1_000 if str(request.url) == large_url else 100
+        if request.headers.get("range") == "bytes=0-0":
+            return httpx.Response(
+                206,
+                content=b"0",
+                headers={
+                    "Content-Type": "video/mp4",
+                    "Content-Range": f"bytes 0-0/{size}",
+                },
+            )
+        full_downloads.append(str(request.url))
+        return httpx.Response(
+            200,
+            content=b"small-video",
+            headers={
+                "Content-Type": "video/mp4",
+                "Content-Length": "11",
+            },
+        )
+
+    old_client = local_douyin_service.client
+    local_douyin_service.client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler)
+    )
+    quality = Quality(
+        id="compact",
+        label="紧凑来源",
+        width=480,
+        height=None,
+        bitrate=None,
+        estimated_bytes=None,
+        source_urls=(large_url, small_url),
+    )
+    try:
+        response = await local_douyin_service.open_smallest_authorized_source(
+            quality
+        )
+        assert await response.aread() == b"small-video"
+        await response.aclose()
+    finally:
+        await local_douyin_service.client.aclose()
+        local_douyin_service.client = old_client
+    assert full_downloads == [small_url]
 
 
 @pytest.mark.asyncio

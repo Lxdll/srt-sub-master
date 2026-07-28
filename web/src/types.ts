@@ -86,6 +86,10 @@ export interface Task {
   media_available?: boolean;
   media_expires_at?: string | null;
   queue_position?: number | null;
+  downloaded_bytes?: number;
+  download_total_bytes?: number;
+  download_speed_bps?: number;
+  download_eta_seconds?: number | null;
 }
 
 export interface Segment {

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from uuid import uuid4
 
 from douyin_engine import ParseResult, Quality, build_download_filename
@@ -64,6 +65,23 @@ def ensure_model_available(device: dict[str, Any], model_id: str) -> None:
         )
 
 
+def _compact_transcription_sources(quality: Quality) -> list[str]:
+    sources: list[str] = []
+    for source in quality.source_urls:
+        parsed = urlparse(source)
+        query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        if (
+            parsed.scheme == "https"
+            and parsed.hostname == "aweme.snssdk.com"
+            and parsed.path == "/aweme/v1/play/"
+            and query.get("video_id")
+        ):
+            query["ratio"] = "480p"
+            sources.append(urlunparse(parsed._replace(query=urlencode(query))))
+        sources.append(source)
+    return list(dict.fromkeys(sources))
+
+
 def _authorized_quality(result: ParseResult) -> tuple[Quality, list[str]]:
     if (
         result.duration_ms
@@ -71,7 +89,7 @@ def _authorized_quality(result: ParseResult) -> tuple[Quality, list[str]]:
     ):
         raise TranscriptionError("视频超过 30 分钟，暂不支持转写。")
     quality = choose_transcription_quality(result)
-    source_urls = list(quality.source_urls)
+    source_urls = _compact_transcription_sources(quality)
     if not source_urls or any(
         not is_media_url_allowed(source) for source in source_urls
     ):
@@ -315,7 +333,9 @@ async def retry_local_douyin_task(
             SET claim_token_hash = ?, claim_receipt_hash = NULL,
                 source_urls_json = ?, expected_size_bytes = ?,
                 expected_duration_ms = ?, claimed_at = NULL,
-                completed_at = NULL, updated_at = ?
+                completed_at = NULL, downloaded_bytes = 0,
+                download_total_bytes = 0, download_speed_bps = 0,
+                download_eta_seconds = NULL, updated_at = ?
             WHERE task_id = ?
             """,
             (

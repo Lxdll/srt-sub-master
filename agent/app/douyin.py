@@ -221,5 +221,64 @@ class LocalDouyinService:
             )
         return await self._open_source(quality, None)
 
+    async def open_smallest_authorized_source(
+        self,
+        quality: Quality,
+    ) -> httpx.Response:
+        if not quality.source_urls or any(
+            not is_media_url_allowed(source) for source in quality.source_urls
+        ):
+            raise DouyinError(
+                "服务器授权的视频来源无效。",
+                code="INVALID_AUTHORIZED_SOURCE",
+                status_code=400,
+            )
+        measured: list[tuple[int, str]] = []
+        unmeasured: list[str] = []
+        for source in quality.source_urls:
+            candidate = Quality(
+                id=quality.id,
+                label=quality.label,
+                width=quality.width,
+                height=quality.height,
+                bitrate=quality.bitrate,
+                estimated_bytes=quality.estimated_bytes,
+                source_urls=(source,),
+            )
+            try:
+                response = await self._open_source(candidate, "bytes=0-0")
+            except DouyinError:
+                unmeasured.append(source)
+                continue
+            content_range = response.headers.get("content-range", "")
+            total_text = content_range.rsplit("/", 1)[-1] if "/" in content_range else ""
+            total = int(total_text) if total_text.isdigit() else 0
+            if not total and response.status_code == 200:
+                total = int(response.headers.get("content-length") or 0)
+            await response.aclose()
+            if total:
+                measured.append((total, source))
+            else:
+                unmeasured.append(source)
+        ordered_sources = [
+            source for _, source in sorted(measured, key=lambda item: item[0])
+        ] + unmeasured
+        if not ordered_sources:
+            return await self._open_source(quality, None)
+        selected = Quality(
+            id=quality.id,
+            label=quality.label,
+            width=quality.width,
+            height=quality.height,
+            bitrate=quality.bitrate,
+            estimated_bytes=(
+                min(size for size, _ in measured)
+                if measured
+                else quality.estimated_bytes
+            ),
+            source_urls=tuple(ordered_sources),
+        )
+        return await self._open_source(selected, None)
+
 
 local_douyin_service = LocalDouyinService()

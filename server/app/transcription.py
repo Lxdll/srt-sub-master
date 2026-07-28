@@ -424,6 +424,10 @@ def task_transcription_metadata(task_id: str) -> dict[str, Any]:
                 "media_available": False,
                 "media_expires_at": None,
                 "queue_position": queue_position,
+                "downloaded_bytes": local_job["downloaded_bytes"],
+                "download_total_bytes": local_job["download_total_bytes"],
+                "download_speed_bps": local_job["download_speed_bps"],
+                "download_eta_seconds": local_job["download_eta_seconds"],
             }
         queue_position = None
         if job["status"] == "queued":

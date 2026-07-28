@@ -79,6 +79,10 @@ class TaskProgressRequest(BaseModel):
     status: TaskStatus
     progress: float = Field(ge=0, le=100)
     error: str | None = None
+    downloaded_bytes: int | None = Field(default=None, ge=0)
+    download_total_bytes: int | None = Field(default=None, ge=0)
+    download_speed_bps: float | None = Field(default=None, ge=0)
+    download_eta_seconds: int | None = Field(default=None, ge=0)
 
 
 class EditSegmentRequest(BaseModel):
