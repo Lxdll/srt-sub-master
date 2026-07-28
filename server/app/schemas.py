@@ -80,6 +80,10 @@ class TaskProgressRequest(BaseModel):
     status: TaskStatus
     progress: float = Field(ge=0, le=100)
     error: str | None = None
+    downloaded_bytes: int | None = Field(default=None, ge=0)
+    download_total_bytes: int | None = Field(default=None, ge=0)
+    download_speed_bps: float | None = Field(default=None, ge=0)
+    download_eta_seconds: int | None = Field(default=None, ge=0)
 
 
 class EditSegmentRequest(BaseModel):
@@ -89,6 +93,10 @@ class EditSegmentRequest(BaseModel):
 class VerifyCommandRequest(BaseModel):
     token: str
     task_id: str | None = None
+
+
+class ClaimLocalDouyinTaskRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=512)
 
 
 class AttachAssetRequest(BaseModel):
@@ -104,6 +112,9 @@ class DouyinParseRequest(BaseModel):
 
 class DouyinTranscriptionRequest(BaseModel):
     text: str = Field(min_length=1, max_length=4_000)
+    backend: Literal["server", "local_agent"] = "server"
+    device_id: str | None = None
+    model_id: Literal["small", "large-v3", "large-v3-turbo"] | None = None
 
 
 class DouyinTranscriptionResponse(BaseModel):

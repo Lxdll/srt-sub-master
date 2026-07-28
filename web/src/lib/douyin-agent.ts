@@ -1,4 +1,4 @@
-import type { DouyinParseResult, LocalHealth } from "../types";
+import type { DouyinParseResult, LocalHealth, ModelInfo } from "../types";
 
 export const AGENT_URL = "http://127.0.0.1:43921";
 
@@ -26,6 +26,19 @@ export const douyinAgent = {
     return localFetch<LocalHealth & { douyin?: boolean }>("/health", { signal });
   },
 
+  pair(code: string) {
+    const origin = window.location.origin;
+    return localFetch<{ ok: boolean; device_id: string }>("/pair", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        code,
+        origin,
+        server_url: origin,
+      }),
+    });
+  },
+
   parse(text: string, commandToken: string) {
     return localFetch<DouyinParseResult>("/douyin/parse", {
       method: "POST",
@@ -34,6 +47,21 @@ export const douyinAgent = {
         "X-Command-Token": commandToken,
       },
       body: JSON.stringify({ text }),
+    });
+  },
+
+  models() {
+    return localFetch<ModelInfo[]>("/models");
+  },
+
+  downloadModel(modelId: string, commandToken: string) {
+    return localFetch<{
+      status: "queued" | "downloading" | "ready" | "failed";
+      progress: number;
+      error?: string;
+    }>(`/models/${encodeURIComponent(modelId)}/download`, {
+      method: "POST",
+      headers: {"X-Command-Token": commandToken},
     });
   },
 
@@ -47,5 +75,13 @@ export const douyinAgent = {
       command_token: commandToken,
     });
     return `${AGENT_URL}/douyin/preview/${encodeURIComponent(ticket)}?${query}`;
+  },
+
+  assetUrl(assetId: string, taskId: string, commandToken: string) {
+    const query = new URLSearchParams({
+      task_id: taskId,
+      token: commandToken,
+    });
+    return `${AGENT_URL}/assets/${encodeURIComponent(assetId)}?${query}`;
   },
 };

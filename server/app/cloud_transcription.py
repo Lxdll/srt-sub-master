@@ -275,14 +275,18 @@ class CloudTranscriptionService:
             with db_session() as db:
                 job = db.execute(
                     """
-                    SELECT j.*, t.status
+                    SELECT j.*, t.status, t.backend
                     FROM server_transcription_jobs j
                     JOIN tasks t ON t.id = j.task_id
                     WHERE j.task_id = ?
                     """,
                     (task_id,),
                 ).fetchone()
-                if not job or job["attempts"] != attempt:
+                if (
+                    not job
+                    or job["backend"] != "fc"
+                    or job["attempts"] != attempt
+                ):
                     return False
                 if job["status"] == "ready":
                     return False

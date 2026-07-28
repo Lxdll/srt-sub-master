@@ -1974,6 +1974,73 @@
         }
       }
     },
+    "/api/agent/tasks/{task_id}/claim-douyin": {
+      "post": {
+        "summary": "Agent Claim Douyin Task",
+        "operationId": "agent_claim_douyin_task_api_agent_tasks__task_id__claim_douyin_post",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimLocalDouyinTaskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Agent Claim Douyin Task Api Agent Tasks  Task Id  Claim Douyin Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/agent/tasks/{task_id}/progress": {
       "post": {
         "summary": "Agent Task Progress",
@@ -2263,6 +2330,21 @@
         ],
         "title": "ChangePasswordRequest"
       },
+      "ClaimLocalDouyinTaskRequest": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 20,
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "ClaimLocalDouyinTaskRequest"
+      },
       "CreateTaskRequest": {
         "properties": {
           "device_id": {
@@ -2527,6 +2609,42 @@
             "maxLength": 4000,
             "minLength": 1,
             "title": "Text"
+          },
+          "backend": {
+            "type": "string",
+            "enum": [
+              "server",
+              "local_agent"
+            ],
+            "title": "Backend",
+            "default": "server"
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "small",
+                  "large-v3",
+                  "large-v3-turbo"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
           }
         },
         "type": "object",
@@ -3160,6 +3278,54 @@
               }
             ],
             "title": "Error"
+          },
+          "downloaded_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Downloaded Bytes"
+          },
+          "download_total_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Total Bytes"
+          },
+          "download_speed_bps": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Speed Bps"
+          },
+          "download_eta_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Eta Seconds"
           }
         },
         "type": "object",
