@@ -16,6 +16,9 @@ importers:
       lucide-react:
         specifier: ^0.468.0
         version: 0.468.0(react@19.2.8)
+      pako:
+        specifier: 1.0.11
+        version: 1.0.11
       react:
         specifier: ^19.1.0
         version: 19.2.8
@@ -864,6 +867,9 @@ packages:
     hasBin: true
     peerDependencies:
       typescript: ^5.x
+
+  pako@1.0.11:
+    resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
 
   parse-json@8.3.0:
     resolution: {integrity: sha512-ybiGyvspI+fAoRQbIPRddCcSTV9/LsJbf0e/S85VLowVGzRmokfneg2kwVW/KU5rOXrPSbF1qAKPMgNTqqROQQ==}
@@ -1905,6 +1911,8 @@ snapshots:
       supports-color: 10.2.2
       typescript: 5.8.3
       yargs-parser: 21.1.1
+
+  pako@1.0.11: {}
 
   parse-json@8.3.0:
     dependencies:

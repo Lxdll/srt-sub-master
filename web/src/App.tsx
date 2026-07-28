@@ -12,6 +12,7 @@ import { EditorPage } from "./pages/EditorPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NoAccessPage } from "./pages/NoAccessPage";
 import { ProhibitedWordsPage } from "./pages/ProhibitedWordsPage";
+import { ScriptAnalysisPage } from "./pages/ScriptAnalysisPage";
 import { useAuth } from "./lib/auth";
 import { defaultPath } from "./lib/permissions";
 
@@ -92,6 +93,14 @@ export function App() {
         element={
           <FeatureRoute permission="prohibited_word_check">
             <ProhibitedWordsPage />
+          </FeatureRoute>
+        }
+      />
+      <Route
+        path="/script-analysis"
+        element={
+          <FeatureRoute permission="script_analysis">
+            <ScriptAnalysisPage />
           </FeatureRoute>
         }
       />

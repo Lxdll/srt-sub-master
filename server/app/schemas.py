@@ -17,6 +17,7 @@ PermissionKey = Literal[
     "subtitle_workspace",
     "douyin_download",
     "prohibited_word_check",
+    "script_analysis",
 ]
 
 
@@ -161,3 +162,73 @@ class ProhibitedWordsCheckResponse(BaseModel):
     matches: list[ProhibitedWordMatch]
     match_count: int = Field(ge=0)
     unique_term_count: int = Field(ge=0)
+
+
+class ScriptAnalysisRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=30_000)
+    platform: str | None = Field(default=None, max_length=80)
+    audience: str | None = Field(default=None, max_length=300)
+    target_duration_seconds: int | None = Field(default=None, ge=1, le=7_200)
+    goal: str | None = Field(default=None, max_length=500)
+
+
+class ScriptAnalysisOverview(BaseModel):
+    title: str
+    synopsis: str
+    core_message: str
+    target_audience: str
+    tone: str
+    estimated_duration: str
+
+
+class ScriptAnalysisBreakdownItem(BaseModel):
+    section: int = Field(ge=1)
+    label: str
+    excerpt: str
+    purpose: str
+    visuals: list[str]
+    assets: list[str]
+    on_screen_text: list[str]
+    audio: list[str]
+    production_notes: str
+
+
+class ScriptAnalysisRequirementItem(BaseModel):
+    name: str
+    purpose: str
+    priority: Literal["必需", "建议"]
+
+
+class ScriptAnalysisRequirementGroup(BaseModel):
+    category: str
+    items: list[ScriptAnalysisRequirementItem]
+
+
+class ScriptAnalysisHighlight(BaseModel):
+    excerpt: str
+    reason: str
+    leverage: str
+
+
+class ScriptAnalysisHook(BaseModel):
+    excerpt: str
+    hook_type: str
+    position: str
+    mechanism: str
+    strength: Literal["强", "中", "弱"]
+    suggestion: str
+
+
+class ScriptAnalysisSuggestion(BaseModel):
+    area: str
+    issue: str
+    recommendation: str
+
+
+class ScriptAnalysisResponse(BaseModel):
+    overview: ScriptAnalysisOverview
+    breakdown: list[ScriptAnalysisBreakdownItem]
+    requirements: list[ScriptAnalysisRequirementGroup]
+    highlights: list[ScriptAnalysisHighlight]
+    hooks: list[ScriptAnalysisHook]
+    suggestions: list[ScriptAnalysisSuggestion]

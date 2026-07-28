@@ -16,7 +16,12 @@ from .db import db_session, utc_now
 
 password_hasher = PasswordHasher()
 FEATURE_PERMISSIONS = frozenset(
-    {"subtitle_workspace", "douyin_download", "prohibited_word_check"}
+    {
+        "subtitle_workspace",
+        "douyin_download",
+        "prohibited_word_check",
+        "script_analysis",
+    }
 )
 command_serializer = URLSafeTimedSerializer(
     settings.session_secret, salt="srt-local-command"
