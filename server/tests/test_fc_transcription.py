@@ -260,6 +260,35 @@ def test_fc_media_uses_short_lived_oss_redirect(
     assert response.headers["location"].startswith("https://private-oss.example/")
 
 
+def test_fc_result_cleanup_also_deletes_srt(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    deleted: list[str] = []
+
+    class FakeBucket:
+        def delete_object(self, key: str):
+            deleted.append(key)
+
+    monkeypatch.setattr(
+        cloud_transcription_service,
+        "_oss_bucket",
+        lambda: FakeBucket(),
+    )
+    task_id = "b2e16f90-aac5-4372-9a65-c7ba22bbce10"
+    media_key = f"douyin-transcriptions/media/{task_id}/video.mp4"
+    result_key = (
+        f"douyin-transcriptions/results/{task_id}/1/result.json"
+    )
+
+    cloud_transcription_service.delete_objects(media_key, result_key)
+
+    assert deleted == [
+        media_key,
+        result_key,
+        f"douyin-transcriptions/results/{task_id}/1/transcript.srt",
+    ]
+
+
 def test_stale_running_fc_job_becomes_retryable(client: TestClient):
     task_id, _ = _create_cloud_job(client)
     old = (datetime.now(UTC) - timedelta(hours=2)).isoformat()

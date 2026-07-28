@@ -179,12 +179,18 @@ class CloudTranscriptionService:
         return result
 
     def delete_objects(self, *object_keys: str | None) -> None:
-        keys = [key for key in object_keys if key]
+        keys: list[str] = []
+        for key in object_keys:
+            if not key:
+                continue
+            keys.append(key)
+            if key.endswith("/result.json"):
+                keys.append(f"{key.removesuffix('result.json')}transcript.srt")
         if not keys:
             return
         try:
             bucket = self._oss_bucket()
-            for key in keys:
+            for key in dict.fromkeys(keys):
                 self._validate_object_key(key)
                 bucket.delete_object(key)
         except Exception:
