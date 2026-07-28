@@ -5,7 +5,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
-from douyin_engine import build_download_filename
+from douyin_engine import ParseResult, Quality, build_download_filename
+from douyin_engine.core import is_media_url_allowed
 
 from .config import settings
 from .db import db_session, utc_now
@@ -63,6 +64,29 @@ def ensure_model_available(device: dict[str, Any], model_id: str) -> None:
         )
 
 
+def _authorized_quality(result: ParseResult) -> tuple[Quality, list[str]]:
+    if (
+        result.duration_ms
+        and result.duration_ms > settings.transcription_max_duration_seconds * 1000
+    ):
+        raise TranscriptionError("视频超过 30 分钟，暂不支持转写。")
+    quality = choose_transcription_quality(result)
+    source_urls = list(quality.source_urls)
+    if not source_urls or any(
+        not is_media_url_allowed(source) for source in source_urls
+    ):
+        raise TranscriptionError(
+            "解析服务没有返回可供本机安全下载的视频来源，请稍后重试。",
+            status_code=503,
+        )
+    if (
+        quality.estimated_bytes
+        and quality.estimated_bytes > settings.transcription_max_source_bytes
+    ):
+        raise TranscriptionError("视频文件超过 500MB，暂不支持转写。")
+    return quality, source_urls
+
+
 def _queue_start_command(
     db: Any,
     *,
@@ -98,17 +122,7 @@ async def create_local_douyin_task(
         raise TranscriptionError("抖音转文案功能尚未启用。", status_code=404)
     ensure_model_available(device, model_id)
     result = await douyin_service.resolve(user, text)
-    if (
-        result.duration_ms
-        and result.duration_ms > settings.transcription_max_duration_seconds * 1000
-    ):
-        raise TranscriptionError("视频超过 30 分钟，暂不支持转写。")
-    quality = choose_transcription_quality(result)
-    if (
-        quality.estimated_bytes
-        and quality.estimated_bytes > settings.transcription_max_source_bytes
-    ):
-        raise TranscriptionError("视频文件超过 500MB，暂不支持转写。")
+    quality, source_urls = _authorized_quality(result)
 
     task_id = str(uuid4())
     claim_token = new_token()
@@ -157,14 +171,15 @@ async def create_local_douyin_task(
         db.execute(
             """
             INSERT INTO local_douyin_jobs(
-                task_id, source_url, aweme_id, expected_size_bytes,
+                task_id, source_url, source_urls_json, aweme_id, expected_size_bytes,
                 expected_duration_ms, claim_token_hash, attempts,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
             """,
             (
                 task_id,
                 result.original_url,
+                json.dumps(source_urls, ensure_ascii=False),
                 result.aweme_id,
                 quality.estimated_bytes or 0,
                 result.duration_ms,
@@ -240,9 +255,22 @@ def claim_local_douyin_task(
             )
         elif row["status"] not in {"downloading", "transcribing"}:
             raise TranscriptionError("该次本机任务授权已经使用。", status_code=409)
+        try:
+            source_urls = json.loads(row["source_urls_json"])
+        except (TypeError, json.JSONDecodeError):
+            source_urls = []
+        if not isinstance(source_urls, list) or any(
+            not isinstance(source, str) or not is_media_url_allowed(source)
+            for source in source_urls
+        ):
+            raise TranscriptionError(
+                "本机任务的视频来源授权无效，请重新创建任务。",
+                status_code=409,
+            )
         return {
             "task_id": task_id,
             "source_url": row["source_url"],
+            "source_urls": source_urls,
             "aweme_id": row["aweme_id"],
             "original_name": row["original_name"],
             "model_id": row["model_id"],
@@ -254,36 +282,64 @@ def claim_local_douyin_task(
         }
 
 
-def retry_local_douyin_task(
+async def retry_local_douyin_task(
     task: dict[str, Any],
     device: dict[str, Any],
+    user: dict[str, Any],
 ) -> None:
     ensure_model_available(device, task["model_id"])
-    claim_token = new_token()
-    now = utc_now()
     with db_session() as db:
         job = db.execute(
-            "SELECT 1 FROM local_douyin_jobs WHERE task_id = ?",
+            """
+            SELECT source_url, aweme_id
+            FROM local_douyin_jobs WHERE task_id = ?
+            """,
             (task["id"],),
         ).fetchone()
         if not job:
             raise TranscriptionError("本机抖音任务记录不存在。", status_code=404)
+    douyin_service.engine.invalidate(job["aweme_id"])
+    result = await douyin_service.resolve(user, job["source_url"])
+    if result.aweme_id != job["aweme_id"]:
+        raise TranscriptionError(
+            "重新解析到的作品与原任务不一致，请重新创建任务。",
+            status_code=409,
+        )
+    quality, source_urls = _authorized_quality(result)
+    claim_token = new_token()
+    now = utc_now()
+    with db_session() as db:
         db.execute(
             """
             UPDATE local_douyin_jobs
             SET claim_token_hash = ?, claim_receipt_hash = NULL,
-                claimed_at = NULL, completed_at = NULL, updated_at = ?
+                source_urls_json = ?, expected_size_bytes = ?,
+                expected_duration_ms = ?, claimed_at = NULL,
+                completed_at = NULL, updated_at = ?
             WHERE task_id = ?
             """,
-            (token_hash(claim_token), now, task["id"]),
+            (
+                token_hash(claim_token),
+                json.dumps(source_urls, ensure_ascii=False),
+                quality.estimated_bytes or 0,
+                result.duration_ms,
+                now,
+                task["id"],
+            ),
         )
         db.execute(
             """
             UPDATE tasks
-            SET status = 'queued', progress = 0, error = NULL, updated_at = ?
+            SET status = 'queued', progress = 0, error = NULL,
+                size_bytes = ?, duration_ms = ?, updated_at = ?
             WHERE id = ? AND backend = 'local_agent'
             """,
-            (now, task["id"]),
+            (
+                quality.estimated_bytes or 0,
+                result.duration_ms,
+                now,
+                task["id"],
+            ),
         )
         _queue_start_command(
             db,

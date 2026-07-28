@@ -94,6 +94,7 @@ ON server_transcription_jobs(created_at);
 CREATE TABLE IF NOT EXISTS local_douyin_jobs (
     task_id TEXT PRIMARY KEY REFERENCES tasks(id) ON DELETE CASCADE,
     source_url TEXT NOT NULL,
+    source_urls_json TEXT NOT NULL DEFAULT '[]',
     aweme_id TEXT NOT NULL,
     expected_size_bytes INTEGER NOT NULL DEFAULT 0,
     expected_duration_ms INTEGER,
@@ -232,6 +233,17 @@ def initialize_database() -> None:
                     f"ALTER TABLE server_transcription_jobs "
                     f"ADD COLUMN {name} {definition}"
                 )
+        local_job_columns = {
+            row["name"]
+            for row in connection.execute(
+                "PRAGMA table_info(local_douyin_jobs)"
+            ).fetchall()
+        }
+        if "source_urls_json" not in local_job_columns:
+            connection.execute(
+                "ALTER TABLE local_douyin_jobs "
+                "ADD COLUMN source_urls_json TEXT NOT NULL DEFAULT '[]'"
+            )
         if not permissions_table_existed:
             for permission_key in ("subtitle_workspace", "douyin_download"):
                 connection.execute(

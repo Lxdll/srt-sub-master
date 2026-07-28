@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from douyin_engine import (
+    BhwaProvider,
     DouyinEngine,
     DouyinError,
     ParseResult,
@@ -112,6 +113,37 @@ async def test_self_hosted_provider_normalizes_quality():
     assert result.title == "测试视频"
     assert result.qualities[0].id == "1080p"
     assert result.qualities[0].estimated_bytes == 3_000_000
+
+
+@pytest.mark.asyncio
+async def test_fallback_prefers_direct_douyin_media_source():
+    direct_url = (
+        "https://aweme.snssdk.com/aweme/v1/play/"
+        "?video_id=authorized-test"
+    )
+    proxy_url = (
+        "https://downloader-api.bhwa233.com/api/download"
+        "?url=authorized-test"
+    )
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "awemeId": "7372484719365098803",
+                    "title": "测试视频",
+                    "noteType": "video",
+                    "originDownloadVideoUrl": direct_url,
+                    "downloadVideoUrl": proxy_url,
+                },
+            },
+        )
+
+    provider = BhwaProvider(transport=httpx.MockTransport(handler))
+    result = await provider.parse(VIDEO_URL, "7372484719365098803")
+    assert result.qualities[0].source_urls == (direct_url,)
 
 
 @pytest.mark.asyncio

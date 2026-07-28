@@ -539,8 +539,8 @@ class BhwaProvider:
                 status_code=422,
             )
         source = (
-            payload.get("downloadVideoUrl")
-            or payload.get("originDownloadVideoUrl")
+            payload.get("originDownloadVideoUrl")
+            or payload.get("downloadVideoUrl")
             or payload.get("downloadUrl")
         )
         if not isinstance(source, str) or not is_media_url_allowed(

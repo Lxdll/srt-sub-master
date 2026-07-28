@@ -9,6 +9,9 @@ from uuid import uuid4
 
 import httpx
 
+from douyin_engine import Quality
+from douyin_engine.core import is_media_url_allowed
+
 from .config import load_state, settings
 from .db import db_session, now
 from .douyin import local_douyin_service
@@ -43,6 +46,31 @@ def _ensure_disk_space(required_bytes: int) -> None:
     reserve = 512 * 1024 * 1024
     if shutil.disk_usage(settings.assets_dir).free < required_bytes + reserve:
         raise RuntimeError("本机磁盘空间不足，请至少预留视频大小外加 512MB。")
+
+
+def _authorized_quality(claim: dict[str, Any]) -> Quality | None:
+    raw_sources = claim.get("source_urls")
+    if raw_sources is None or raw_sources == []:
+        return None
+    if (
+        not isinstance(raw_sources, list)
+        or not raw_sources
+        or len(raw_sources) > 8
+        or any(
+            not isinstance(source, str) or not is_media_url_allowed(source)
+            for source in raw_sources
+        )
+    ):
+        raise RuntimeError("服务器授权的视频来源无效，请重新创建任务。")
+    return Quality(
+        id="server-authorized",
+        label="服务器授权来源",
+        width=None,
+        height=None,
+        bitrate=None,
+        estimated_bytes=int(claim.get("expected_size_bytes") or 0) or None,
+        source_urls=tuple(raw_sources),
+    )
 
 
 def _clear_failed_attempt(task_id: str) -> None:
@@ -91,10 +119,14 @@ async def start_remote_douyin_job(task_id: str, claim_token: str) -> None:
             raise RuntimeError("本机缺少所选模型，请先下载模型后再重试。")
 
         await asyncio.to_thread(_progress, task_id, "downloading", 2)
-        result = await local_douyin_service.engine.parse(str(claim["source_url"]))
-        if result.aweme_id != claim["aweme_id"]:
-            raise RuntimeError("本机解析到的视频与服务器授权任务不一致。")
-        quality = _choose_quality(result)
+        quality = _authorized_quality(claim)
+        if quality is None:
+            # Compatibility for tasks created before the server started storing
+            # its already-validated media sources.
+            result = await local_douyin_service.engine.parse(str(claim["source_url"]))
+            if result.aweme_id != claim["aweme_id"]:
+                raise RuntimeError("本机解析到的视频与服务器授权任务不一致。")
+            quality = _choose_quality(result)
         max_bytes = int(claim["max_source_bytes"])
         if quality.estimated_bytes and quality.estimated_bytes > max_bytes:
             raise RuntimeError("视频文件超过任务大小限制。")
@@ -109,7 +141,7 @@ async def start_remote_douyin_job(task_id: str, claim_token: str) -> None:
         digest = hashlib.sha256()
         received = 0
         reported = 2
-        upstream = await local_douyin_service.open_result_source(result, quality)
+        upstream = await local_douyin_service.open_authorized_source(quality)
         total = int(upstream.headers.get("content-length") or 0)
         if total > max_bytes:
             await upstream.aclose()

@@ -142,5 +142,16 @@ class LocalDouyinService:
     ) -> httpx.Response:
         return await self._open_source(quality, None)
 
+    async def open_authorized_source(self, quality: Quality) -> httpx.Response:
+        if not quality.source_urls or any(
+            not is_media_url_allowed(source) for source in quality.source_urls
+        ):
+            raise DouyinError(
+                "服务器授权的视频来源无效。",
+                code="INVALID_AUTHORIZED_SOURCE",
+                status_code=400,
+            )
+        return await self._open_source(quality, None)
+
 
 local_douyin_service = LocalDouyinService()

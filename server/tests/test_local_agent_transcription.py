@@ -10,7 +10,7 @@ from server.app.db import db_session
 from server.app.douyin import douyin_service
 from server.app.transcription import TranscriptionWorker
 from server.tests.conftest import login
-from server.tests.test_transcription import VIDEO_URL, result
+from server.tests.test_transcription import CDN_URL, VIDEO_URL, result
 
 
 def _pair_device(
@@ -133,6 +133,7 @@ async def test_local_claim_is_scoped_and_completion_is_idempotent(
     )
     assert claimed.status_code == 200, claimed.text
     assert claimed.json()["source_url"] == VIDEO_URL
+    assert claimed.json()["source_urls"] == [CDN_URL]
     assert claimed.json()["model_id"] == "large-v3-turbo"
     assert claimed.json()["replayed"] is False
 
@@ -290,6 +291,14 @@ async def test_local_offline_missing_model_failure_retry_and_delete(
             ],
         },
     )
+    with db_session() as db:
+        db.execute(
+            """
+            UPDATE local_douyin_jobs SET source_urls_json = '[]'
+            WHERE task_id = ?
+            """,
+            (task_id,),
+        )
     retried = client.post(
         f"/api/tasks/{task_id}/retry",
         headers={"X-CSRF-Token": csrf},
@@ -298,6 +307,13 @@ async def test_local_offline_missing_model_failure_retry_and_delete(
     assert client.get(f"/api/tasks/{task_id}").json()["status"] == "queued"
     new_token = _claim_token(task_id)
     assert new_token != token
+    refreshed = client.post(
+        f"/api/agent/tasks/{task_id}/claim-douyin",
+        headers=headers,
+        json={"token": new_token},
+    )
+    assert refreshed.status_code == 200
+    assert refreshed.json()["source_urls"] == [CDN_URL]
 
     deleted = client.delete(
         f"/api/tasks/{task_id}",

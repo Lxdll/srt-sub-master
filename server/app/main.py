@@ -1080,7 +1080,7 @@ async def retry_task(
                 detail="本机 Agent 当前离线，请启动 Agent 后再重试。",
             )
         try:
-            retry_local_douyin_task(dict(task), dict(device))
+            await retry_local_douyin_task(dict(task), dict(device), user)
             return {"ok": True}
         except TranscriptionError as exc:
             if exc.status_code != 404:

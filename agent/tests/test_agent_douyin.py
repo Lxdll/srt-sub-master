@@ -39,6 +39,26 @@ def result() -> ParseResult:
     )
 
 
+def test_remote_claim_uses_only_server_authorized_media_sources():
+    quality = remote_douyin._authorized_quality(
+        {
+            "source_urls": [CDN_URL],
+            "expected_size_bytes": 8,
+        }
+    )
+    assert quality is not None
+    assert quality.source_urls == (CDN_URL,)
+    assert quality.estimated_bytes == 8
+
+    with pytest.raises(RuntimeError, match="授权的视频来源无效"):
+        remote_douyin._authorized_quality(
+            {
+                "source_urls": ["https://example.com/private.mp4"],
+                "expected_size_bytes": 8,
+            }
+        )
+
+
 def test_local_parse_requires_command_and_returns_safe_result(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ):
