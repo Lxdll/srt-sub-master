@@ -1,4 +1,4 @@
-#define MyAppName "SRT Sub 本机识别器"
+#define MyAppName "不二 本机识别器"
 #define MyAppVersion "0.1.0"
 #ifndef ProjectDir
   #define ProjectDir "..\.."

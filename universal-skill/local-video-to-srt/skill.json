@@ -1,0 +1,41 @@
+{
+  "name": "local-video-to-srt",
+  "version": "0.1.0",
+  "description": "Local-only video or audio transcription to SRT",
+  "privacy": {
+    "uploads_media": false,
+    "uploads_model": false,
+    "network_may_download_model": true
+  },
+  "commands": {
+    "doctor": {
+      "argv": ["python3", "scripts/local_video_to_srt.py", "doctor", "--json"],
+      "output": "application/json"
+    },
+    "models": {
+      "argv": ["python3", "scripts/local_video_to_srt.py", "models", "--json"],
+      "output": "application/json"
+    },
+    "transcribe": {
+      "argv": [
+        "python3",
+        "scripts/local_video_to_srt.py",
+        "transcribe",
+        "{absolute_input_path}",
+        "--output",
+        "{absolute_output_path}",
+        "--model",
+        "{model_id}",
+        "--language",
+        "{language}",
+        "--json"
+      ],
+      "required": ["absolute_input_path", "absolute_output_path"],
+      "defaults": {
+        "model_id": "large-v3-turbo",
+        "language": "zh"
+      },
+      "output": "application/json"
+    }
+  }
+}

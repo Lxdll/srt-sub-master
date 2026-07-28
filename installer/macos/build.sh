@@ -37,9 +37,9 @@ cp "$ffmpeg_source" "$project_dir/agent/bin/ffmpeg"
 stage="$build_dir/dmg"
 rm -rf "$stage"
 mkdir -p "$stage"
-mv "$project_dir/dist/SRT Sub 本机识别器.app" "$stage/SRT Sub 本机识别器.app"
+mv "$project_dir/dist/不二 本机识别器.app" "$stage/不二 本机识别器.app"
 ln -s /Applications "$stage/Applications"
-hdiutil create -volname "SRT Sub 本机识别器" \
+hdiutil create -volname "不二 本机识别器" \
   -srcfolder "$stage" -ov -format UDZO \
   "$artifact_dir/srt-sub-agent-macos-arm64.dmg"
 echo "已生成 $artifact_dir/srt-sub-agent-macos-arm64.dmg"

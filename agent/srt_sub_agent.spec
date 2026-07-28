@@ -51,10 +51,10 @@ exe = EXE(
 if sys.platform == "darwin":
     app = BUNDLE(
         exe,
-        name="SRT Sub 本机识别器.app",
+        name="不二 本机识别器.app",
         bundle_identifier="com.srtsub.agent",
         info_plist={
-            "CFBundleName": "SRT Sub 本机识别器",
+            "CFBundleName": "不二 本机识别器",
             "NSHighResolutionCapable": True,
             "LSUIElement": True,
         },

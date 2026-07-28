@@ -10,7 +10,6 @@ from pathlib import Path
 import platform
 import shutil
 import subprocess
-import sys
 from typing import Any, AsyncIterator
 from uuid import uuid4
 
@@ -21,6 +20,8 @@ import websockets
 
 from .config import load_state, save_state, settings
 from .db import db_session, initialize_database, now
+from .douyin import local_douyin_service
+from douyin_engine import DouyinError, content_disposition
 from .media import MediaError, probe_video
 from .models import catalog, model_path, start_download
 from .system_info import hardware_info
@@ -67,7 +68,7 @@ def _native_confirm(origin: str) -> bool:
             import ctypes
 
             return ctypes.windll.user32.MessageBoxW(
-                0, message, "SRT Sub 本机识别器", 1 | 32
+                0, message, "不二 本机识别器", 1 | 32
             ) == 1
     except (OSError, subprocess.SubprocessError):
         return False
@@ -147,12 +148,15 @@ async def lifespan(_: FastAPI):
     settings.assets_dir.mkdir(parents=True, exist_ok=True)
     heartbeat = asyncio.create_task(_heartbeat_loop())
     socket = asyncio.create_task(_agent_socket_loop())
-    yield
-    heartbeat.cancel()
-    socket.cancel()
+    try:
+        yield
+    finally:
+        heartbeat.cancel()
+        socket.cancel()
+        await local_douyin_service.close()
 
 
-app = FastAPI(title="SRT Sub Local Agent", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="不二 本机组件", version="0.1.0", lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -173,7 +177,10 @@ async def local_security(request: Request, call_next):
         response.headers["Vary"] = "Origin"
         response.headers["Access-Control-Allow-Methods"] = "GET,POST,DELETE,OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = (
-            "Authorization,Content-Type,X-Command-Token"
+            "Authorization,Content-Type,X-Command-Token,Range"
+        )
+        response.headers["Access-Control-Expose-Headers"] = (
+            "Content-Length,Content-Range,Content-Disposition,Accept-Ranges"
         )
         response.headers["Access-Control-Allow-Private-Network"] = "true"
     return response
@@ -187,6 +194,7 @@ def health() -> dict[str, Any]:
         "paired": bool(state.get("device_token")),
         "device_id": state.get("device_id"),
         "version": "0.1.0",
+        "douyin": True,
     }
 
 
@@ -240,7 +248,9 @@ async def pair(request: Request) -> dict[str, Any]:
     return {"ok": True, "device_id": state["device_id"]}
 
 
-async def _verify_command(token: str, task_id: str | None = None) -> None:
+async def _verify_command(
+    token: str, task_id: str | None = None
+) -> dict[str, Any]:
     state = load_state()
     if not state.get("server_url") or not state.get("device_token"):
         raise HTTPException(status_code=401, detail="识别器尚未配对")
@@ -255,6 +265,91 @@ async def _verify_command(token: str, task_id: str | None = None) -> None:
         )
     if response.is_error:
         raise HTTPException(status_code=401, detail="本机操作授权无效")
+    return response.json()
+
+
+def _douyin_http_error(exc: DouyinError) -> HTTPException:
+    return HTTPException(
+        status_code=exc.status_code,
+        detail=str(exc),
+        headers={"X-Douyin-Error": exc.code},
+    )
+
+
+def _douyin_stream_response(stream: Any, *, attachment: bool) -> StreamingResponse:
+    upstream = stream.response
+    headers = {
+        "Accept-Ranges": upstream.headers.get("accept-ranges", "bytes"),
+        "Cache-Control": "private, no-store",
+    }
+    if attachment:
+        headers["Content-Disposition"] = content_disposition(stream.filename)
+    for source, target in (
+        ("content-length", "Content-Length"),
+        ("content-range", "Content-Range"),
+        ("etag", "ETag"),
+        ("last-modified", "Last-Modified"),
+    ):
+        if upstream.headers.get(source):
+            headers[target] = upstream.headers[source]
+    return StreamingResponse(
+        stream.body(),
+        status_code=upstream.status_code,
+        media_type=upstream.headers.get("content-type", "video/mp4"),
+        headers=headers,
+    )
+
+
+@app.post("/douyin/parse")
+async def parse_douyin(request: Request) -> dict[str, Any]:
+    command = await _verify_command(request.headers.get("x-command-token", ""))
+    payload = await request.json()
+    try:
+        return await local_douyin_service.parse(
+            str(command["user_id"]),
+            str(payload.get("text") or ""),
+        )
+    except DouyinError as exc:
+        raise _douyin_http_error(exc) from exc
+
+
+@app.get("/douyin/download/{ticket}")
+async def download_douyin(
+    ticket: str,
+    request: Request,
+    quality: str | None = None,
+) -> StreamingResponse:
+    command = await _verify_command(request.headers.get("x-command-token", ""))
+    try:
+        stream = await local_douyin_service.open_download(
+            str(command["user_id"]),
+            ticket,
+            quality,
+            request.headers.get("range"),
+        )
+    except DouyinError as exc:
+        raise _douyin_http_error(exc) from exc
+    return _douyin_stream_response(stream, attachment=True)
+
+
+@app.get("/douyin/preview/{ticket}")
+async def preview_douyin(
+    ticket: str,
+    request: Request,
+    command_token: str,
+    quality: str | None = None,
+) -> StreamingResponse:
+    command = await _verify_command(command_token)
+    try:
+        stream = await local_douyin_service.open_download(
+            str(command["user_id"]),
+            ticket,
+            quality,
+            request.headers.get("range"),
+        )
+    except DouyinError as exc:
+        raise _douyin_http_error(exc) from exc
+    return _douyin_stream_response(stream, attachment=False)
 
 
 @app.post("/models/{model_id}/download")
