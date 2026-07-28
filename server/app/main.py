@@ -51,11 +51,14 @@ from .schemas import (
     PairDeviceRequest,
     ProhibitedWordsCheckRequest,
     ProhibitedWordsCheckResponse,
+    ScriptAnalysisRequest,
+    ScriptAnalysisResponse,
     TaskProgressRequest,
     TaskResultRequest,
     UpdateUserPermissionsRequest,
     VerifyCommandRequest,
 )
+from .script_analysis import ScriptAnalysisError, script_analysis_service
 from .security import (
     FEATURE_PERMISSIONS,
     admin_user,
@@ -459,6 +462,36 @@ async def check_prohibited_words(
     try:
         return await prohibited_word_service.check(payload.text, custom_terms)
     except ProhibitedWordsError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@app.post(
+    "/api/script-analysis/analyze",
+    response_model=ScriptAnalysisResponse,
+)
+async def analyze_script(
+    payload: ScriptAnalysisRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    require_csrf(request, user)
+    ensure_permission(user, "script_analysis")
+    script = payload.text.strip()
+    if not script:
+        raise HTTPException(status_code=422, detail="视频脚本不能为空")
+    context = {
+        key: value
+        for key, value in {
+            "platform": payload.platform.strip() if payload.platform else None,
+            "audience": payload.audience.strip() if payload.audience else None,
+            "target_duration_seconds": payload.target_duration_seconds,
+            "goal": payload.goal.strip() if payload.goal else None,
+        }.items()
+        if value not in (None, "")
+    }
+    try:
+        return await script_analysis_service.analyze(script, context)
+    except ScriptAnalysisError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 

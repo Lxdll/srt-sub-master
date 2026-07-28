@@ -4,6 +4,7 @@ export const FEATURE_LABELS: Record<PermissionKey, string> = {
   subtitle_workspace: "字幕校对",
   douyin_download: "抖音下载",
   prohibited_word_check: "违禁词检测",
+  script_analysis: "脚本拆解",
 };
 
 export const FEATURE_PERMISSIONS = Object.keys(
@@ -20,6 +21,7 @@ export function hasPermission(
 export function defaultPath(user: User | null | undefined) {
   if (hasPermission(user, "douyin_download")) return "/douyin";
   if (hasPermission(user, "prohibited_word_check")) return "/prohibited-words";
+  if (hasPermission(user, "script_analysis")) return "/script-analysis";
   if (hasPermission(user, "subtitle_workspace")) return "/subtitle";
   return "/no-access";
 }

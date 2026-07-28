@@ -3,6 +3,7 @@ import {
   Captions,
   Download,
   AudioLines,
+  Clapperboard,
   Eye,
   EyeOff,
   KeyRound,
@@ -107,6 +108,12 @@ export function AppShell({ children }: PropsWithChildren) {
             <NavLink to="/prohibited-words">
               <ShieldAlert size={15} />
               <span>违禁词检测</span>
+            </NavLink>
+          )}
+          {hasPermission(user, "script_analysis") && (
+            <NavLink to="/script-analysis">
+              <Clapperboard size={15} />
+              <span>脚本拆解</span>
             </NavLink>
           )}
         </nav>

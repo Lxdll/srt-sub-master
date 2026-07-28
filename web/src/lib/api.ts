@@ -6,6 +6,7 @@ import type {
   Task,
   TaskDetail,
   User,
+  ScriptAnalysisResult,
 } from "../types";
 import type { components } from "../generated/api";
 
@@ -177,6 +178,24 @@ export const api = {
         body: JSON.stringify({ text }),
       },
     );
+  },
+
+  analyzeScript(
+    payload: {
+      text: string;
+      platform?: string;
+      audience?: string;
+      target_duration_seconds?: number;
+      goal?: string;
+    },
+    signal?: AbortSignal,
+  ) {
+    return request<ScriptAnalysisResult>("/api/script-analysis/analyze", {
+      method: "POST",
+      csrf: true,
+      signal,
+      body: JSON.stringify(payload),
+    });
   },
 
   parseDouyin(text: string) {

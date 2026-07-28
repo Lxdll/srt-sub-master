@@ -6,7 +6,8 @@ export type TaskStatus =
 export type PermissionKey =
   | "subtitle_workspace"
   | "douyin_download"
-  | "prohibited_word_check";
+  | "prohibited_word_check"
+  | "script_analysis";
 
 export interface User {
   id: string;
@@ -117,3 +118,6 @@ export type CustomProhibitedWord =
 
 export type ProhibitedWordsCheckResult =
   components["schemas"]["ProhibitedWordsCheckResponse"];
+
+export type ScriptAnalysisResult =
+  components["schemas"]["ScriptAnalysisResponse"];
