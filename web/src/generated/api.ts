@@ -21,6 +21,143 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/douyin/parse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Parse Douyin */
+        post: operations["parse_douyin_api_douyin_parse_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/douyin/transcriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Douyin Transcription */
+        post: operations["create_douyin_transcription_api_douyin_transcriptions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/douyin/download/{ticket}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Douyin */
+        get: operations["download_douyin_api_douyin_download__ticket__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/douyin/preview/{ticket}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview Douyin */
+        get: operations["preview_douyin_api_douyin_preview__ticket__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/douyin/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Douyin Status */
+        get: operations["douyin_status_api_admin_douyin_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/prohibited-words/custom": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Custom Prohibited Words */
+        get: operations["list_custom_prohibited_words_api_prohibited_words_custom_get"];
+        put?: never;
+        /** Add Custom Prohibited Word */
+        post: operations["add_custom_prohibited_word_api_prohibited_words_custom_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/prohibited-words/custom/{word_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Custom Prohibited Word */
+        delete: operations["delete_custom_prohibited_word_api_prohibited_words_custom__word_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/prohibited-words/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check Prohibited Words */
+        post: operations["check_prohibited_words_api_prohibited_words_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -79,7 +216,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List Users */
+        get: operations["list_users_api_admin_users_get"];
         put?: never;
         /** Create User */
         post: operations["create_user_api_admin_users_post"];
@@ -87,6 +225,57 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{user_id}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update User Permissions */
+        patch: operations["update_user_permissions_api_admin_users__user_id__permissions_patch"];
+        trace?: never;
+    };
+    "/api/admin/users/{user_id}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Admin Reset Password */
+        patch: operations["admin_reset_password_api_admin_users__user_id__password_patch"];
+        trace?: never;
+    };
+    "/api/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change Password */
+        patch: operations["change_password_api_auth_password_patch"];
         trace?: never;
     };
     "/api/devices/pair-code": {
@@ -175,6 +364,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tasks/import-srt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Srt */
+        post: operations["import_srt_api_tasks_import_srt_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tasks/{task_id}": {
         parameters: {
             query?: never;
@@ -188,6 +394,23 @@ export interface paths {
         post?: never;
         /** Delete Task */
         delete: operations["delete_task_api_tasks__task_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Task Media */
+        get: operations["get_task_media_api_tasks__task_id__media_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -350,6 +573,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AdminResetPasswordRequest */
+        AdminResetPasswordRequest: {
+            /** Password */
+            password: string;
+        };
         /** AttachAssetRequest */
         AttachAssetRequest: {
             /** Local Asset Id */
@@ -360,6 +588,21 @@ export interface components {
             duration_ms: number;
             /** Size Bytes */
             size_bytes: number;
+        };
+        /** Body_import_srt_api_tasks_import_srt_post */
+        Body_import_srt_api_tasks_import_srt_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+        };
+        /** ChangePasswordRequest */
+        ChangePasswordRequest: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
         };
         /** CreateTaskRequest */
         CreateTaskRequest: {
@@ -383,6 +626,73 @@ export interface components {
              * @default false
              */
             is_admin: boolean;
+            /** Permissions */
+            permissions?: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check")[];
+        };
+        /** CustomProhibitedWordRequest */
+        CustomProhibitedWordRequest: {
+            /** Term */
+            term: string;
+        };
+        /** CustomProhibitedWordResponse */
+        CustomProhibitedWordResponse: {
+            /** Id */
+            id: string;
+            /** Term */
+            term: string;
+            /** Created At */
+            created_at: string;
+        };
+        /** DouyinParseRequest */
+        DouyinParseRequest: {
+            /** Text */
+            text: string;
+        };
+        /** DouyinParseResponse */
+        DouyinParseResponse: {
+            /** Ticket */
+            ticket: string;
+            /** Aweme Id */
+            aweme_id: string;
+            /** Title */
+            title: string;
+            /** Author */
+            author: string;
+            /** Cover Url */
+            cover_url?: string | null;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /** Qualities */
+            qualities: components["schemas"]["DouyinQualityResponse"][];
+            /** Recommended Quality */
+            recommended_quality: string;
+            /** Expires At */
+            expires_at: string;
+        };
+        /** DouyinQualityResponse */
+        DouyinQualityResponse: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Width */
+            width?: number | null;
+            /** Height */
+            height?: number | null;
+            /** Bitrate */
+            bitrate?: number | null;
+            /** Estimated Bytes */
+            estimated_bytes?: number | null;
+        };
+        /** DouyinTranscriptionRequest */
+        DouyinTranscriptionRequest: {
+            /** Text */
+            text: string;
+        };
+        /** DouyinTranscriptionResponse */
+        DouyinTranscriptionResponse: {
+            /** Task Id */
+            task_id: string;
         };
         /** EditSegmentRequest */
         EditSegmentRequest: {
@@ -420,6 +730,40 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /** ProhibitedWordMatch */
+        ProhibitedWordMatch: {
+            /** Term */
+            term: string;
+            /** Category */
+            category: string;
+            /** Reason */
+            reason: string;
+            /** Sources */
+            sources: ("ai" | "custom")[];
+            /** Occurrences */
+            occurrences: components["schemas"]["ProhibitedWordOccurrence"][];
+        };
+        /** ProhibitedWordOccurrence */
+        ProhibitedWordOccurrence: {
+            /** Start */
+            start: number;
+            /** End */
+            end: number;
+        };
+        /** ProhibitedWordsCheckRequest */
+        ProhibitedWordsCheckRequest: {
+            /** Text */
+            text: string;
+        };
+        /** ProhibitedWordsCheckResponse */
+        ProhibitedWordsCheckResponse: {
+            /** Matches */
+            matches: components["schemas"]["ProhibitedWordMatch"][];
+            /** Match Count */
+            match_count: number;
+            /** Unique Term Count */
+            unique_term_count: number;
+        };
         /** SegmentResult */
         SegmentResult: {
             /** Start Ms */
@@ -435,7 +779,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "uploading" | "queued" | "transcribing" | "ready" | "failed";
+            status: "uploading" | "queued" | "downloading" | "transcribing" | "ready" | "failed";
             /** Progress */
             progress: number;
             /** Error */
@@ -453,6 +797,11 @@ export interface components {
             size_bytes: number;
             /** Segments */
             segments: components["schemas"]["SegmentResult"][];
+        };
+        /** UpdateUserPermissionsRequest */
+        UpdateUserPermissionsRequest: {
+            /** Permissions */
+            permissions: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check")[];
         };
         /** ValidationError */
         ValidationError: {
@@ -497,6 +846,315 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    parse_douyin_api_douyin_parse_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DouyinParseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DouyinParseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_douyin_transcription_api_douyin_transcriptions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DouyinTranscriptionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DouyinTranscriptionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_douyin_api_douyin_download__ticket__get: {
+        parameters: {
+            query?: {
+                quality?: string | null;
+            };
+            header?: never;
+            path: {
+                ticket: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_douyin_api_douyin_preview__ticket__get: {
+        parameters: {
+            query?: {
+                quality?: string | null;
+            };
+            header?: never;
+            path: {
+                ticket: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    douyin_status_api_admin_douyin_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_custom_prohibited_words_api_prohibited_words_custom_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomProhibitedWordResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_custom_prohibited_word_api_prohibited_words_custom_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomProhibitedWordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomProhibitedWordResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_custom_prohibited_word_api_prohibited_words_custom__word_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                word_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_prohibited_words_api_prohibited_words_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProhibitedWordsCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProhibitedWordsCheckResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -602,6 +1260,39 @@ export interface operations {
             };
         };
     };
+    list_users_api_admin_users_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_user_api_admin_users_post: {
         parameters: {
             query?: never;
@@ -625,6 +1316,121 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_user_permissions_api_admin_users__user_id__permissions_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserPermissionsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_reset_password_api_admin_users__user_id__password_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_password_api_auth_password_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
                     };
                 };
             };
@@ -847,6 +1653,43 @@ export interface operations {
             };
         };
     };
+    import_srt_api_tasks_import_srt_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_srt_api_tasks_import_srt_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_task_api_tasks__task_id__get: {
         parameters: {
             query?: never;
@@ -904,6 +1747,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: boolean;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_task_media_api_tasks__task_id__media_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

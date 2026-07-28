@@ -1,30 +1,17 @@
 import { ArrowUpRight, History, ShieldCheck } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { AgentSetup } from "../components/AgentSetup";
-import { AdminUserCard } from "../components/AdminUserCard";
 import { AppShell } from "../components/AppShell";
+import { SrtUploadPanel } from "../components/SrtUploadPanel";
 import { TaskList } from "../components/TaskList";
-import { UploadPanel } from "../components/UploadPanel";
 import { api } from "../lib/api";
-import { useAuth } from "../lib/auth";
-import type { LocalHealth, LocalSystem } from "../types";
 
 export function DashboardPage() {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [health, setHealth] = useState<LocalHealth | null>(null);
-  const [system, setSystem] = useState<LocalSystem | null>(null);
   const tasks = useQuery({
     queryKey: ["tasks"],
     queryFn: api.tasks,
     refetchInterval: 2000,
   });
-
-  function ready(nextHealth: LocalHealth, nextSystem: LocalSystem) {
-    setHealth(nextHealth);
-    setSystem(nextSystem);
-  }
 
   return (
     <AppShell>
@@ -32,22 +19,19 @@ export function DashboardPage() {
         <section className="dashboard-hero">
           <div>
             <span className="eyebrow">SUBTITLE WORKSPACE</span>
-            <h1>今天要校对哪一段声音？</h1>
-            <p>视频留在本机，识别交给你的电脑。完成后在这里逐句播放、修改和导出。</p>
+            <h1>今天要校对哪一份字幕？</h1>
+            <p>先由任意 AI 在本机生成 SRT，再到这里逐句校对、保存和导出。</p>
           </div>
           <div className="privacy-badge">
             <ShieldCheck size={21} />
             <div>
-              <strong>视频不上服务器</strong>
-              <span>仅字幕与任务状态同步</span>
+              <strong>网站只接收字幕</strong>
+              <span>视频与模型始终留在本机</span>
             </div>
           </div>
         </section>
 
-        <AgentSetup onReady={ready} />
-        <UploadPanel
-          health={health}
-          system={system}
+        <SrtUploadPanel
           onUploaded={() =>
             queryClient.invalidateQueries({ queryKey: ["tasks"] })
           }
@@ -75,10 +59,8 @@ export function DashboardPage() {
           )}
         </section>
 
-        {user?.is_admin && <AdminUserCard />}
-
         <footer className="dashboard-footer">
-          <span>字准 · 本机语音识别与字幕校对</span>
+          <span>不二 · 本机语音识别与字幕校对</span>
           <a href="/api/docs" target="_blank" rel="noreferrer">
             API 文档 <ArrowUpRight size={14} />
           </a>
@@ -87,4 +69,3 @@ export function DashboardPage() {
     </AppShell>
   );
 }
-

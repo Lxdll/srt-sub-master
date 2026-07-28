@@ -1,11 +1,12 @@
 import {
   ArrowLeft,
+  Clock3,
   Download,
   FileQuestion,
   FileVideo,
-  RotateCcw,
+  RefreshCw,
 } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
@@ -14,35 +15,42 @@ import {
   type SegmentEditorHandle,
 } from "../components/SegmentEditor";
 import { api } from "../lib/api";
-import { agent, AGENT_URL, relinkVideo } from "../lib/agent";
 
 export function EditorPage() {
   const { taskId = "" } = useParams();
-  const queryClient = useQueryClient();
   const videoRef = useRef<HTMLVideoElement>(null);
   const rowRefs = useRef(new Map<string, SegmentEditorHandle>());
+  const pausedForEditingRef = useRef(false);
+  const resumeAfterEditingRef = useRef(false);
+  const manuallyPausedRef = useRef(true);
+  const resumeTimerRef = useRef<number | null>(null);
   const [currentMs, setCurrentMs] = useState(0);
-  const [deviceId, setDeviceId] = useState<string | null>(null);
-  const [relinking, setRelinking] = useState(false);
-  const [relinkProgress, setRelinkProgress] = useState(0);
-  const [error, setError] = useState("");
-  const [videoToken, setVideoToken] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [videoName, setVideoName] = useState("");
+  const [retrying, setRetrying] = useState(false);
 
   const task = useQuery({
     queryKey: ["task", taskId],
     queryFn: () => api.task(taskId),
-    refetchInterval: (query) =>
-      query.state.data?.status === "ready" ? false : 1500,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && status !== "ready" && status !== "failed" ? 2000 : false;
+    },
   });
 
   useEffect(() => {
-    agent
-      .health()
-      .then((health) => setDeviceId(health.device_id ?? null))
-      .catch(() => setDeviceId(null));
-  }, []);
+    return () => {
+      if (videoUrl) URL.revokeObjectURL(videoUrl);
+      if (resumeTimerRef.current !== null) {
+        window.clearTimeout(resumeTimerRef.current);
+      }
+    };
+  }, [videoUrl]);
 
   const segments = task.data?.segments ?? [];
+  const effectiveVideoUrl =
+    videoUrl ||
+    (task.data?.media_available ? api.taskMediaUrl(taskId) : "");
 
   const active = segments.find(
     (segment) => currentMs >= segment.start_ms && currentMs < segment.end_ms,
@@ -52,41 +60,54 @@ export function EditorPage() {
     if (active) rowRefs.current.get(active.id)?.scrollIntoView();
   }, [active?.id]);
 
-  const asset = task.data?.device_assets.find(
-    (item) => item.device_id === deviceId,
-  );
-
-  useEffect(() => {
-    if (!asset || !deviceId) {
-      setVideoToken("");
-      return;
-    }
-    api
-      .commandToken(deviceId, taskId)
-      .then(({ token }) => setVideoToken(token))
-      .catch((reason) =>
-        setError(reason instanceof Error ? reason.message : "视频授权失败"),
-      );
-  }, [asset?.id, deviceId, taskId]);
-
   function seek(seconds: number) {
     if (!videoRef.current) return;
     videoRef.current.currentTime = seconds;
     void videoRef.current.play();
   }
 
-  async function relink(file: File | undefined) {
-    if (!file || !deviceId) return;
-    setRelinking(true);
-    setError("");
+  function startEditing() {
+    if (resumeTimerRef.current !== null) {
+      window.clearTimeout(resumeTimerRef.current);
+      resumeTimerRef.current = null;
+      return;
+    }
+    const video = videoRef.current;
+    if (!video) return;
+    resumeAfterEditingRef.current = !video.paused && !video.ended;
+    if (resumeAfterEditingRef.current) {
+      pausedForEditingRef.current = true;
+      video.pause();
+    }
+  }
+
+  function finishEditing() {
+    if (!videoRef.current || !resumeAfterEditingRef.current) return;
+    resumeTimerRef.current = window.setTimeout(() => {
+      resumeTimerRef.current = null;
+      if (!manuallyPausedRef.current && videoRef.current?.paused) {
+        void videoRef.current.play();
+      }
+      resumeAfterEditingRef.current = false;
+    }, 0);
+  }
+
+  function selectVideo(file: File | undefined) {
+    if (!file) return;
+    setVideoUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
+    });
+    setVideoName(file.name);
+  }
+
+  async function retry() {
+    setRetrying(true);
     try {
-      const { command_token } = await api.relinkToken(taskId, deviceId);
-      await relinkVideo(file, taskId, command_token, setRelinkProgress);
-      await queryClient.invalidateQueries({ queryKey: ["task", taskId] });
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "重新关联失败");
+      await api.retryTask(taskId);
+      await task.refetch();
     } finally {
-      setRelinking(false);
+      setRetrying(false);
     }
   }
 
@@ -101,13 +122,16 @@ export function EditorPage() {
     <AppShell>
       <div className="editor-page">
         <div className="editor-topbar">
-          <Link to="/" className="back-link">
+          <Link to="/subtitle" className="back-link">
             <ArrowLeft size={17} /> 返回工作台
           </Link>
           <div className="editor-title">
             <strong>{task.data.original_name}</strong>
             <span>
-              {task.data.model_id} · {segments.length} 条字幕
+              {task.data.model_id === "imported-srt"
+                ? "SRT 导入"
+                : task.data.model_id}{" "}
+              · {segments.length} 条字幕
             </span>
           </div>
           <div className="export-actions">
@@ -133,11 +157,19 @@ export function EditorPage() {
               <FileVideo size={30} />
             </div>
             <h2>
-              {task.data.status === "failed" ? "识别没有完成" : "正在本机识别"}
+              {task.data.status === "failed"
+                ? "这次没有识别成功"
+                : task.data.status === "queued"
+                  ? "任务正在排队"
+                  : task.data.status === "downloading"
+                    ? "正在下载视频"
+                    : "正在识别说话内容"}
             </h2>
             <p>
               {task.data.error ||
-                "可以暂时离开页面，本机识别器会继续处理并同步进度。"}
+                (task.data.status === "queued" && task.data.queue_position
+                  ? `当前排在第 ${task.data.queue_position} 位，可以关闭页面稍后再回来。`
+                  : "服务器会自动完成处理，可以关闭页面稍后再回来。")}
             </p>
             <div className="large-progress">
               <span style={{ width: `${task.data.progress}%` }} />
@@ -146,59 +178,89 @@ export function EditorPage() {
             {task.data.status === "failed" && (
               <button
                 className="primary-button"
-                onClick={async () => {
-                  await api.retryTask(taskId);
-                  await task.refetch();
-                }}
+                type="button"
+                onClick={() => void retry()}
+                disabled={retrying}
               >
-                <RotateCcw size={17} /> 重试识别
+                <RefreshCw size={16} className={retrying ? "spin" : ""} />
+                {retrying ? "正在重新排队…" : "重新识别"}
               </button>
             )}
           </section>
         ) : (
-          <>
+          <div className="editor-workspace">
             <section className="video-stage">
-              {asset && videoToken ? (
+              {effectiveVideoUrl ? (
                 <video
                   ref={videoRef}
                   controls
                   preload="metadata"
-                  src={`${AGENT_URL}/assets/${asset.local_asset_id}?task_id=${encodeURIComponent(taskId)}&token=${encodeURIComponent(videoToken)}`}
+                  src={effectiveVideoUrl}
                   onTimeUpdate={(event) =>
                     setCurrentMs(event.currentTarget.currentTime * 1000)
                   }
+                  onPlay={() => {
+                    manuallyPausedRef.current = false;
+                  }}
+                  onPause={() => {
+                    if (pausedForEditingRef.current) {
+                      pausedForEditingRef.current = false;
+                      return;
+                    }
+                    manuallyPausedRef.current = true;
+                  }}
                 />
               ) : (
                 <div className="missing-video">
                   <FileQuestion size={36} />
-                  <h2>这台电脑还没有原视频</h2>
+                  <h2>
+                    {task.data.source_type === "douyin"
+                      ? "校对视频已过期"
+                      : "可选：选择本机原视频"}
+                  </h2>
                   <p>
-                    字幕已经保存在服务器。重新选择同一个 MP4，校验通过后即可继续播放校对。
+                    {task.data.source_type === "douyin"
+                      ? "服务器只保留视频 7 天，字幕仍可继续修改和导出。"
+                      : "视频只在当前浏览器页面中播放，不会上传或保存到网站。"}
                   </p>
                   <label className="primary-button">
                     <FileVideo size={17} />
-                    {relinking
-                      ? `正在关联 ${relinkProgress}%`
-                      : "重新选择原视频"}
+                    选择本机视频
                     <input
                       type="file"
-                      accept=".mp4,video/mp4"
+                      accept="video/*,.mp4"
                       hidden
-                      onChange={(event) => relink(event.target.files?.[0])}
+                      onChange={(event) =>
+                        selectVideo(event.target.files?.[0])
+                      }
                     />
                   </label>
-                  {error && <div className="form-error">{error}</div>}
                 </div>
               )}
             </section>
 
-            <section className="subtitle-workbench">
+            <section
+              className="subtitle-workbench"
+              tabIndex={-1}
+              onMouseDown={(event) => {
+                const target = event.target as HTMLElement;
+                if (!target.closest("textarea, button, a, input")) {
+                  event.currentTarget.focus();
+                }
+              }}
+            >
               <div className="subtitle-heading">
                 <div>
                   <span className="eyebrow">LIVE REVIEW</span>
                   <h2>字幕校对</h2>
                 </div>
-                <p>播放时自动定位 · 点击时间跳转 · 修改后自动保存</p>
+                <p>
+                  {videoName
+                    ? `${videoName} · 播放时自动定位 · 修改后自动保存`
+                    : task.data.media_available
+                      ? "抖音视频 7 天内可播放 · 修改后自动保存"
+                    : "选择视频后可同步定位 · 修改后自动保存"}
+                </p>
               </div>
               <div className="subtitle-list">
                 {segments.map((segment) => (
@@ -212,11 +274,13 @@ export function EditorPage() {
                     segment={segment}
                     active={active?.id === segment.id}
                     onSeek={seek}
+                    onEditStart={startEditing}
+                    onEditEnd={finishEditing}
                   />
                 ))}
               </div>
             </section>
-          </>
+          </div>
         )}
       </div>
     </AppShell>

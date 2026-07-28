@@ -1,6 +1,8 @@
 import type {
+  AdminUser,
   AuthResponse,
   Device,
+  PermissionKey,
   Task,
   TaskDetail,
   User,
@@ -61,11 +63,57 @@ export const api = {
     });
   },
 
-  createUser(username: string, password: string) {
+  createUser(
+    username: string,
+    password: string,
+    permissions: PermissionKey[],
+  ) {
     return request<User>("/api/admin/users", {
       method: "POST",
       csrf: true,
-      body: JSON.stringify({ username, password, is_admin: false }),
+      body: JSON.stringify({
+        username,
+        password,
+        is_admin: false,
+        permissions,
+      }),
+    });
+  },
+
+  adminUsers() {
+    return request<AdminUser[]>("/api/admin/users");
+  },
+
+  updateUserPermissions(userId: string, permissions: PermissionKey[]) {
+    return request<AdminUser>(
+      `/api/admin/users/${encodeURIComponent(userId)}/permissions`,
+      {
+        method: "PATCH",
+        csrf: true,
+        body: JSON.stringify({ permissions }),
+      },
+    );
+  },
+
+  resetUserPassword(userId: string, password: string) {
+    return request<{ ok: boolean }>(
+      `/api/admin/users/${encodeURIComponent(userId)}/password`,
+      {
+        method: "PATCH",
+        csrf: true,
+        body: JSON.stringify({ password }),
+      },
+    );
+  },
+
+  changePassword(currentPassword: string, newPassword: string) {
+    return request<{ ok: boolean }>("/api/auth/password", {
+      method: "PATCH",
+      csrf: true,
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
     });
   },
 
@@ -90,6 +138,83 @@ export const api = {
 
   tasks() {
     return request<Task[]>("/api/tasks");
+  },
+
+  customProhibitedWords() {
+    return request<ApiSchemas["CustomProhibitedWordResponse"][]>(
+      "/api/prohibited-words/custom",
+      { csrf: true },
+    );
+  },
+
+  addCustomProhibitedWord(term: string) {
+    return request<ApiSchemas["CustomProhibitedWordResponse"]>(
+      "/api/prohibited-words/custom",
+      {
+        method: "POST",
+        csrf: true,
+        body: JSON.stringify({ term }),
+      },
+    );
+  },
+
+  deleteCustomProhibitedWord(wordId: string) {
+    return request<{ ok: boolean }>(
+      `/api/prohibited-words/custom/${encodeURIComponent(wordId)}`,
+      {
+        method: "DELETE",
+        csrf: true,
+      },
+    );
+  },
+
+  checkProhibitedWords(text: string) {
+    return request<ApiSchemas["ProhibitedWordsCheckResponse"]>(
+      "/api/prohibited-words/check",
+      {
+        method: "POST",
+        csrf: true,
+        body: JSON.stringify({ text }),
+      },
+    );
+  },
+
+  parseDouyin(text: string) {
+    return request<ApiSchemas["DouyinParseResponse"]>("/api/douyin/parse", {
+      method: "POST",
+      csrf: true,
+      body: JSON.stringify({ text }),
+    });
+  },
+
+  createDouyinTranscription(text: string) {
+    return request<{ task_id: string }>("/api/douyin/transcriptions", {
+      method: "POST",
+      csrf: true,
+      body: JSON.stringify({ text }),
+    });
+  },
+
+  douyinDownloadUrl(ticket: string, quality: string) {
+    return `/api/douyin/download/${encodeURIComponent(ticket)}?quality=${encodeURIComponent(quality)}`;
+  },
+
+  douyinPreviewUrl(ticket: string, quality: string) {
+    return `/api/douyin/preview/${encodeURIComponent(ticket)}?quality=${encodeURIComponent(quality)}`;
+  },
+
+  taskMediaUrl(taskId: string) {
+    return `/api/tasks/${encodeURIComponent(taskId)}/media`;
+  },
+
+  importSrt(file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{ id: string }>("/api/tasks/import-srt", {
+      method: "POST",
+      csrf: true,
+      body: form,
+    });
   },
 
   task(taskId: string) {

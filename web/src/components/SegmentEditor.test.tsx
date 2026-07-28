@@ -20,6 +20,8 @@ describe("formatTime", () => {
   });
 
   it("saves edited text after the debounce window", async () => {
+    const onEditStart = vi.fn();
+    const onEditEnd = vi.fn();
     render(
       <SegmentEditor
         taskId="task-1"
@@ -34,10 +36,15 @@ describe("formatTime", () => {
         }}
         active={false}
         onSeek={() => undefined}
+        onEditStart={onEditStart}
+        onEditEnd={onEditEnd}
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("第 1 条字幕"), {
+    const editor = screen.getByLabelText("第 1 条字幕");
+    fireEvent.focus(editor);
+    expect(onEditStart).toHaveBeenCalledOnce();
+    fireEvent.change(editor, {
       target: { value: "修改后的字幕" },
     });
     expect(screen.getByText("保存中")).toBeTruthy();
@@ -51,5 +58,7 @@ describe("formatTime", () => {
       { timeout: 1000 },
     );
     expect(screen.getByText("已保存")).toBeTruthy();
+    fireEvent.blur(editor);
+    expect(onEditEnd).toHaveBeenCalledOnce();
   });
 });

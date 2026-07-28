@@ -14,6 +14,8 @@ interface SegmentEditorProps {
   segment: Segment;
   active: boolean;
   onSeek: (seconds: number) => void;
+  onEditStart: () => void;
+  onEditEnd: () => void;
 }
 
 export interface SegmentEditorHandle {
@@ -24,11 +26,12 @@ export const SegmentEditor = forwardRef<
   SegmentEditorHandle,
   SegmentEditorProps
 >(function SegmentEditor(
-  { taskId, segment, active, onSeek },
+  { taskId, segment, active, onSeek, onEditStart, onEditEnd },
   forwardedRef,
 ) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [text, setText] = useState(segment.edited_text);
+  const [editing, setEditing] = useState(false);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "error">(
     "saved",
   );
@@ -57,7 +60,9 @@ export const SegmentEditor = forwardRef<
   return (
     <div
       ref={rowRef}
-      className={`segment-row ${active ? "active" : ""}`}
+      className={`segment-row ${active ? "active" : ""} ${
+        editing ? "editing" : ""
+      }`}
       onClick={() => onSeek(segment.start_ms / 1000)}
     >
       <button className="segment-time" type="button">
@@ -69,6 +74,14 @@ export const SegmentEditor = forwardRef<
         value={text}
         rows={Math.max(1, Math.ceil(text.length / 28))}
         onClick={(event) => event.stopPropagation()}
+        onFocus={() => {
+          setEditing(true);
+          onEditStart();
+        }}
+        onBlur={() => {
+          setEditing(false);
+          onEditEnd();
+        }}
         onChange={(event) => {
           setText(event.target.value);
         }}

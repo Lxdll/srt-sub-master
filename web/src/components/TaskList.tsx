@@ -10,7 +10,6 @@ import {
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import type { Task } from "../types";
-import { formatBytes } from "./UploadPanel";
 
 interface TaskListProps {
   tasks: Task[];
@@ -20,6 +19,7 @@ interface TaskListProps {
 const statusMap = {
   uploading: ["本地复制中", Clock3],
   queued: ["排队中", Clock3],
+  downloading: ["下载视频中", RefreshCw],
   transcribing: ["识别中", RefreshCw],
   ready: ["可校对", CheckCircle2],
   failed: ["失败", AlertCircle],
@@ -29,7 +29,7 @@ export function TaskList({ tasks, onChanged }: TaskListProps) {
   async function remove(task: Task) {
     if (
       !window.confirm(
-        `确定删除“${task.original_name}”吗？字幕记录和识别器中的副本都会被删除，原始文件不受影响。`,
+        `确定删除“${task.original_name}”吗？网站中的字幕记录会被永久删除。`,
       )
     )
       return;
@@ -47,7 +47,7 @@ export function TaskList({ tasks, onChanged }: TaskListProps) {
       <div className="empty-tasks">
         <FileText size={28} />
         <strong>还没有字幕任务</strong>
-        <p>连接识别器并选择一个 MP4，第一份字幕会出现在这里。</p>
+        <p>导入一份本机生成的 SRT，第一份字幕会出现在这里。</p>
       </div>
     );
   }
@@ -73,9 +73,17 @@ export function TaskList({ tasks, onChanged }: TaskListProps) {
             <div className={`task-status ${task.status}`}>
               <Icon size={15} className={task.status === "transcribing" ? "spin" : ""} />
               {label}
-              {task.status === "transcribing" && ` ${Math.round(task.progress)}%`}
+              {(task.status === "transcribing" ||
+                task.status === "downloading") &&
+                ` ${Math.round(task.progress)}%`}
             </div>
-            <span className="model-tag">{task.model_id}</span>
+            <span className="model-tag">
+              {task.model_id === "imported-srt"
+                ? "SRT"
+                : task.model_id === "whisper-small-q5_1"
+                  ? "服务器 Small Q5"
+                  : task.model_id}
+            </span>
             <div className="task-menu">
               {task.status === "failed" && (
                 <button className="icon-button" onClick={() => retry(task)} title="重试">
@@ -96,6 +104,14 @@ export function TaskList({ tasks, onChanged }: TaskListProps) {
       })}
     </div>
   );
+}
+
+function formatBytes(bytes: number) {
+  if (!bytes) return "大小待下载";
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
 function formatDuration(milliseconds: number) {

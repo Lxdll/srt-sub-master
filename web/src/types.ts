@@ -3,10 +3,20 @@ import type { components } from "./generated/api";
 export type TaskStatus =
   components["schemas"]["TaskProgressRequest"]["status"];
 
+export type PermissionKey =
+  | "subtitle_workspace"
+  | "douyin_download"
+  | "prohibited_word_check";
+
 export interface User {
   id: string;
   username: string;
   is_admin: boolean;
+  permissions: PermissionKey[];
+}
+
+export interface AdminUser extends User {
+  created_at: string;
 }
 
 export interface AuthResponse {
@@ -71,6 +81,10 @@ export interface Task {
   error: string | null;
   created_at: string;
   updated_at: string;
+  source_type?: "douyin";
+  media_available?: boolean;
+  media_expires_at?: string | null;
+  queue_position?: number | null;
 }
 
 export interface Segment {
@@ -94,3 +108,12 @@ export interface TaskDetail extends Task {
   segments: Segment[];
   device_assets: DeviceAsset[];
 }
+
+export type DouyinParseResult =
+  components["schemas"]["DouyinParseResponse"];
+
+export type CustomProhibitedWord =
+  components["schemas"]["CustomProhibitedWordResponse"];
+
+export type ProhibitedWordsCheckResult =
+  components["schemas"]["ProhibitedWordsCheckResponse"];

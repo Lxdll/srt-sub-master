@@ -3,8 +3,10 @@ import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { defaultPath } from "../lib/permissions";
+import { ThemeToggle } from "../components/ThemeToggle";
 
-export function LoginPage() {
+export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
   const { user, setAuth } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
@@ -12,7 +14,7 @@ export function LoginPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to={adminMode ? "/" : defaultPath(user)} replace />;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -21,7 +23,7 @@ export function LoginPage() {
     try {
       const result = await api.login(username, password);
       setAuth(result);
-      navigate("/");
+      navigate(adminMode ? "/" : defaultPath(result.user));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "登录失败");
     } finally {
@@ -31,24 +33,42 @@ export function LoginPage() {
 
   return (
     <main className="login-page">
+      <div className="login-theme-toggle">
+        <ThemeToggle />
+      </div>
       <section className="login-story">
-        <div className="eyebrow">PRIVATE · LOCAL · PRECISE</div>
-        <h1>
-          让每一句话，
-          <br />
-          <em>准确落在时间里。</em>
-        </h1>
-        <p>
-          视频与模型始终留在你的电脑，网站只保存字幕。播放、校对、修改和导出，在一个安静的工作台里完成。
-        </p>
+        <div className="eyebrow">
+          {adminMode ? "SECURE · ISOLATED · CONTROLLED" : "PRIVATE · LOCAL · PRECISE"}
+        </div>
+        {adminMode ? (
+          <>
+            <h1>
+              管理账号，
+              <br />
+              <em>从独立后台开始。</em>
+            </h1>
+            <p>仅管理员可以进入，普通访问账号无法查看或创建其他用户。</p>
+          </>
+        ) : (
+          <>
+            <h1>
+              让每一句话，
+              <br />
+              <em>准确落在时间里。</em>
+            </h1>
+            <p>
+              先让你信任的 AI 在本机生成 SRT，网站只负责字幕校对、保存和导出。
+            </p>
+          </>
+        )}
         <div className="trust-grid">
           <div>
-            <MonitorDown size={20} />
-            <span>本机识别</span>
+            {adminMode ? <ShieldCheck size={20} /> : <MonitorDown size={20} />}
+            <span>{adminMode ? "管理员限定" : "通用 AI 工具"}</span>
           </div>
           <div>
             <ShieldCheck size={20} />
-            <span>视频不上云</span>
+            <span>{adminMode ? "独立子域名" : "视频不上云"}</span>
           </div>
           <div>
             <LockKeyhole size={20} />
@@ -58,9 +78,13 @@ export function LoginPage() {
       </section>
       <section className="login-panel">
         <div className="login-card">
-          <div className="login-logo">字</div>
-          <h2>进入字幕工作台</h2>
-          <p>使用管理员为你创建的账号登录</p>
+          <div className="login-logo">芦</div>
+          <h2>{adminMode ? "进入管理后台" : "进入不二"}</h2>
+          <p>
+            {adminMode
+              ? "请使用管理员账号登录"
+              : "使用管理员为你创建的账号登录"}
+          </p>
           <form onSubmit={submit}>
             <label>
               用户名
@@ -94,4 +118,3 @@ export function LoginPage() {
     </main>
   );
 }
-
