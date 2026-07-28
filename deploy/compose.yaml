@@ -6,7 +6,7 @@ services:
     build:
       context: ..
       dockerfile: server/Dockerfile
-    image: chenjianru-app:latest
+    image: ${SRT_APP_IMAGE:-chenjianru-app:latest}
     restart: unless-stopped
     environment:
       SRT_PUBLIC_URL: https://${SRT_DOMAIN}

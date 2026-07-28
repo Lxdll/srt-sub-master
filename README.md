@@ -173,6 +173,23 @@ docker compose --env-file .env up -d --build
 docker compose exec app sh -c 'cp /data/srt-sub.sqlite3 /data/srt-sub.backup.sqlite3'
 ```
 
+### GitHub 自动部署
+
+`main` 分支的前后端检查全部通过后，GitHub Actions 会构建带提交 SHA
+的应用镜像并推送至 GHCR，然后通过 SSH 更新生产容器。部署脚本会等待
+容器健康检查；新版本启动失败时自动恢复上一个镜像和 Compose 配置。
+
+仓库需要配置以下 Actions Secrets：
+
+- `PROD_HOST`：生产服务器地址。
+- `PROD_USER`：SSH 部署用户。
+- `PROD_SSH_KEY`：专用部署私钥，不要使用个人日常 SSH 私钥。
+- `PROD_KNOWN_HOSTS`：预先核验过的服务器 SSH Host Key。
+
+服务器运行配置保存在 `/opt/chenjianru/runtime.env`，不会上传到 GitHub。
+每次部署使用 `deploy/remote-deploy.sh` 串行更新，备份存放在
+`/opt/chenjianru/backups`。
+
 ## 隐私边界
 
 - 字幕流程没有视频上传接口。

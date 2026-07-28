@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import json
 from uuid import uuid4
 
 import httpx
@@ -190,6 +191,9 @@ async def test_openai_compatible_request_and_response_parsing():
     async def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/v1/chat/completions"
         assert request.headers["authorization"] == "Bearer test-key"
+        payload = json.loads(request.content)
+        assert "response_format" not in payload
+        assert "enable_thinking" not in payload
         return httpx.Response(
             200,
             json={
@@ -217,6 +221,44 @@ async def test_openai_compatible_request_and_response_parsing():
     service = ProhibitedWordService(config, httpx.MockTransport(handler))
     candidates = await service._request_candidates("加微信")
     assert candidates == [ModelCandidate("加微信", "引流导流", "站外导流")]
+
+
+@pytest.mark.asyncio
+async def test_alibaba_model_studio_uses_non_thinking_json_mode():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["response_format"] == {"type": "json_object"}
+        assert payload["enable_thinking"] is False
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                '{"matches":[{"term":"私下交易",'
+                                '"category":"交易营销","reason":"存在交易风险"}]}'
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    config = replace(
+        settings,
+        moderation_api_base=(
+            "https://workspace.cn-beijing.maas.aliyuncs.com/"
+            "compatible-mode/v1"
+        ),
+        moderation_api_key="test-key",
+        moderation_model="qwen-plus",
+    )
+    service = ProhibitedWordService(config, httpx.MockTransport(handler))
+    candidates = await service._request_candidates("请私下交易")
+    assert candidates == [
+        ModelCandidate("私下交易", "交易营销", "存在交易风险")
+    ]
 
 
 @pytest.mark.asyncio
