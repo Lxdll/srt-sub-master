@@ -54,6 +54,16 @@ def _origin_allowed(origin: str | None, path: str) -> bool:
     return normalized == state.get("origin")
 
 
+def _signed_asset_request_without_origin(request: Request) -> bool:
+    return (
+        request.method == "GET"
+        and request.headers.get("origin") is None
+        and request.url.path.startswith("/assets/")
+        and bool(request.query_params.get("token"))
+        and bool(request.query_params.get("task_id"))
+    )
+
+
 def _native_confirm(origin: str) -> bool:
     if os.getenv("SRT_AGENT_AUTO_CONFIRM", "").lower() == "true":
         return True
@@ -190,7 +200,7 @@ async def local_security(request: Request, call_next):
     else:
         if request.url.path not in {"/health"} and not _origin_allowed(
             origin, request.url.path
-        ):
+        ) and not _signed_asset_request_without_origin(request):
             return JSONResponse({"detail": "Origin not allowed"}, status_code=403)
         response = await call_next(request)
     if origin and _origin_allowed(origin, request.url.path):
