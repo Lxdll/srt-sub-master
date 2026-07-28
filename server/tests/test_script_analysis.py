@@ -263,3 +263,53 @@ async def test_alibaba_script_analysis_json_mode_and_timeout():
             config, httpx.MockTransport(timeout)
         ).analyze(SCRIPT, {})
     assert error.value.status_code == 504
+
+
+@pytest.mark.asyncio
+async def test_script_analysis_uses_its_dedicated_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    captured: dict[str, float] = {}
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(model_result(), ensure_ascii=False)
+                        }
+                    }
+                ]
+            }
+
+    class FakeClient:
+        def __init__(self, *, timeout: float, transport: object):
+            captured["timeout"] = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_: object):
+            return None
+
+        async def post(self, *_: object, **__: object) -> FakeResponse:
+            return FakeResponse()
+
+    monkeypatch.setattr(
+        "server.app.script_analysis.httpx.AsyncClient",
+        FakeClient,
+    )
+    config = replace(
+        settings,
+        moderation_api_base="https://model.test/v1",
+        moderation_api_key="test-key",
+        moderation_model="test-model",
+        moderation_timeout_seconds=1,
+        script_analysis_timeout_seconds=150,
+    )
+    await ScriptAnalysisService(config).analyze(SCRIPT, {})
+    assert captured["timeout"] == 150
