@@ -2,7 +2,12 @@ name: verify
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   web:
@@ -30,3 +35,103 @@ jobs:
           cache: pip
       - run: pip install -r server/requirements-dev.txt -r agent/requirements-base.txt
       - run: python -m pytest server/tests agent/tests
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - web
+      - python
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare image name
+        run: |
+          image="ghcr.io/$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+
+      - name: Sign in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and publish application image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Configure production SSH
+        env:
+          SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.PROD_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Upload deployment bundle
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+        run: |
+          tar -czf "/tmp/deploy-${GITHUB_SHA}.tar.gz" \
+            deploy/compose.yaml \
+            deploy/remote-deploy.sh
+          ssh -i "$HOME/.ssh/deploy_key" "$PROD_USER@$PROD_HOST" \
+            "install -d -m 700 /opt/chenjianru/incoming"
+          scp -i "$HOME/.ssh/deploy_key" \
+            "/tmp/deploy-${GITHUB_SHA}.tar.gz" \
+            "$PROD_USER@$PROD_HOST:/opt/chenjianru/incoming/"
+
+      - name: Deploy production
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          target="$PROD_USER@$PROD_HOST"
+          archive="/opt/chenjianru/incoming/deploy-${GITHUB_SHA}.tar.gz"
+          stage="/opt/chenjianru/incoming/${GITHUB_SHA}"
+          printf '%s' "$GHCR_TOKEN" | \
+            ssh -i "$HOME/.ssh/deploy_key" "$target" \
+              "docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin"
+          ssh -i "$HOME/.ssh/deploy_key" "$target" \
+            "set -eu
+             rm -rf '$stage'
+             install -d -m 700 '$stage'
+             tar -xzf '$archive' -C '$stage'
+             bash '$stage/deploy/remote-deploy.sh' \
+               '$GITHUB_SHA' \
+               '$IMAGE:sha-$GITHUB_SHA' \
+               '$stage/deploy/compose.yaml'
+             rm -f '$archive'"
+
+      - name: Sign out of GitHub Container Registry on production
+        if: always()
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+        run: |
+          ssh -i "$HOME/.ssh/deploy_key" "$PROD_USER@$PROD_HOST" \
+            "docker logout ghcr.io >/dev/null 2>&1 || true"

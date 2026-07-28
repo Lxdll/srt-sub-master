@@ -109,6 +109,9 @@ class ProhibitedWordService:
                 },
             ],
         }
+        if ".maas.aliyuncs.com" in self.config.moderation_api_base:
+            payload["response_format"] = {"type": "json_object"}
+            payload["enable_thinking"] = False
         try:
             async with httpx.AsyncClient(
                 timeout=self.config.moderation_timeout_seconds,
