@@ -10,14 +10,14 @@ jobs:
   macos:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
       - run: brew install ffmpeg
       - run: chmod +x installer/macos/build.sh && ./installer/macos/build.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: srt-sub-agent-macos-arm64
           path: installer/artifacts/srt-sub-agent-macos-arm64.dmg
@@ -25,15 +25,15 @@ jobs:
   windows:
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
       - run: choco install ffmpeg-shared innosetup --yes --no-progress
       - shell: pwsh
         run: .\installer\windows\build.ps1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: srt-sub-agent-windows-x64
           path: installer/artifacts/srt-sub-agent-windows-x64.exe
