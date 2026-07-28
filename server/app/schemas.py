@@ -5,7 +5,19 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-TaskStatus = Literal["uploading", "queued", "transcribing", "ready", "failed"]
+TaskStatus = Literal[
+    "uploading",
+    "queued",
+    "downloading",
+    "transcribing",
+    "ready",
+    "failed",
+]
+PermissionKey = Literal[
+    "subtitle_workspace",
+    "douyin_download",
+    "prohibited_word_check",
+]
 
 
 class LoginRequest(BaseModel):
@@ -17,6 +29,20 @@ class CreateUserRequest(BaseModel):
     username: str = Field(min_length=3, max_length=80, pattern=r"^[\w.@+-]+$")
     password: str = Field(min_length=8, max_length=256)
     is_admin: bool = False
+    permissions: list[PermissionKey] = Field(default_factory=list)
+
+
+class UpdateUserPermissionsRequest(BaseModel):
+    permissions: list[PermissionKey]
+
+
+class AdminResetPasswordRequest(BaseModel):
+    password: str = Field(min_length=8, max_length=256)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=256)
+    new_password: str = Field(min_length=8, max_length=256)
 
 
 class PairDeviceRequest(BaseModel):
@@ -69,3 +95,69 @@ class AttachAssetRequest(BaseModel):
     sha256: str
     duration_ms: int
     size_bytes: int
+
+
+class DouyinParseRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=4_000)
+
+
+class DouyinTranscriptionRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=4_000)
+
+
+class DouyinTranscriptionResponse(BaseModel):
+    task_id: str
+
+
+class DouyinQualityResponse(BaseModel):
+    id: str
+    label: str
+    width: int | None = None
+    height: int | None = None
+    bitrate: int | None = None
+    estimated_bytes: int | None = None
+
+
+class DouyinParseResponse(BaseModel):
+    ticket: str
+    aweme_id: str
+    title: str
+    author: str
+    cover_url: str | None = None
+    duration_ms: int | None = None
+    qualities: list[DouyinQualityResponse]
+    recommended_quality: str
+    expires_at: str
+
+
+class CustomProhibitedWordRequest(BaseModel):
+    term: str = Field(min_length=1, max_length=100)
+
+
+class CustomProhibitedWordResponse(BaseModel):
+    id: str
+    term: str
+    created_at: str
+
+
+class ProhibitedWordsCheckRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=20_000)
+
+
+class ProhibitedWordOccurrence(BaseModel):
+    start: int = Field(ge=0)
+    end: int = Field(gt=0)
+
+
+class ProhibitedWordMatch(BaseModel):
+    term: str
+    category: str
+    reason: str
+    sources: list[Literal["ai", "custom"]]
+    occurrences: list[ProhibitedWordOccurrence]
+
+
+class ProhibitedWordsCheckResponse(BaseModel):
+    matches: list[ProhibitedWordMatch]
+    match_count: int = Field(ge=0)
+    unique_term_count: int = Field(ge=0)

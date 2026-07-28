@@ -1,6 +1,18 @@
-{$SRT_DOMAIN} {
+chenjianru.asia {
 	encode zstd gzip
-	reverse_proxy api:8000
+	reverse_proxy chenjianru-app:8000
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+	}
+}
+
+admin.chenjianru.asia {
+	encode zstd gzip
+	reverse_proxy chenjianru-app:8000
 
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"

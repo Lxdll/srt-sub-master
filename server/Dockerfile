@@ -7,19 +7,20 @@ RUN pnpm install --no-frozen-lockfile
 COPY web web
 RUN pnpm --dir web build
 
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim-bookworm AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    SRT_WEB_DIST=/app/web/dist \
-    SRT_DOWNLOADS_DIR=/app/installer/artifacts
+    DEBIAN_FRONTEND=noninteractive \
+    SRT_WEB_DIST=/app/web/dist
 WORKDIR /app
 COPY server/requirements.txt /app/server/requirements.txt
 RUN pip install --no-cache-dir -r /app/server/requirements.txt
 COPY server /app/server
+COPY douyin_engine /app/douyin_engine
+COPY THIRD_PARTY_NOTICES.md /app/THIRD_PARTY_NOTICES.md
 COPY --from=web-builder /build/web/dist /app/web/dist
-COPY installer/artifacts /app/installer/artifacts
 RUN useradd --create-home --uid 10001 srt && \
-    mkdir -p /data /app/installer/artifacts && \
+    mkdir -p /data && \
     chown -R srt:srt /data /app
 USER srt
 EXPOSE 8000

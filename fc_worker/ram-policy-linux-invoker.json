@@ -1,0 +1,26 @@
+{
+  "Version": "1",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "fc:InvokeFunction",
+        "fc:GetAsyncTask",
+        "fc:StopAsyncTask"
+      ],
+      "Resource": [
+        "acs:fc:<REGION>:<ACCOUNT_ID>:functions/<FUNCTION_NAME>"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "oss:GetObject",
+        "oss:DeleteObject"
+      ],
+      "Resource": [
+        "acs:oss:*:*:<BUCKET>/douyin-transcriptions/*"
+      ]
+    }
+  ]
+}

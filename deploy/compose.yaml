@@ -1,39 +1,110 @@
+name: chenjianru
+
 services:
-  api:
+  app:
+    container_name: chenjianru-app
     build:
       context: ..
       dockerfile: server/Dockerfile
+    image: chenjianru-app:latest
     restart: unless-stopped
     environment:
       SRT_PUBLIC_URL: https://${SRT_DOMAIN}
-      SRT_ALLOWED_ORIGINS: https://${SRT_DOMAIN}
+      SRT_ALLOWED_ORIGINS: https://${SRT_DOMAIN},https://${SRT_ADMIN_DOMAIN}
       SRT_DATA_DIR: /data
       SRT_SESSION_SECRET: ${SRT_SESSION_SECRET}
       SRT_COOKIE_SECURE: "true"
       SRT_ADMIN_USERNAME: ${SRT_ADMIN_USERNAME}
       SRT_ADMIN_PASSWORD: ${SRT_ADMIN_PASSWORD}
+      SRT_DOUYIN_ENABLED: ${SRT_DOUYIN_ENABLED:-true}
+      SRT_DOUYIN_ACCESS: ${SRT_DOUYIN_ACCESS:-authenticated}
+      SRT_DOUYIN_COOKIE_FILE: ${SRT_DOUYIN_COOKIE_FILE:-}
+      SRT_DOUYIN_COOKIE: ${SRT_DOUYIN_COOKIE:-}
+      SRT_BHWA_API_BASE: ${SRT_BHWA_API_BASE:-https://downloader-api.bhwa233.com}
+      SRT_TRANSCRIPTION_ENABLED: ${SRT_TRANSCRIPTION_ENABLED:-true}
+      SRT_TRANSCRIPTION_BACKEND: ${SRT_TRANSCRIPTION_BACKEND:-fc}
+      SRT_TRANSCRIPTION_THREADS: ${SRT_TRANSCRIPTION_THREADS:-2}
+      SRT_TRANSCRIPTION_MAX_DURATION_SECONDS: ${SRT_TRANSCRIPTION_MAX_DURATION_SECONDS:-1800}
+      SRT_TRANSCRIPTION_MAX_SOURCE_BYTES: ${SRT_TRANSCRIPTION_MAX_SOURCE_BYTES:-524288000}
+      SRT_TRANSCRIPTION_MEDIA_RETENTION_HOURS: ${SRT_TRANSCRIPTION_MEDIA_RETENTION_HOURS:-168}
+      SRT_TRANSCRIPTION_MEDIA_QUOTA_BYTES: ${SRT_TRANSCRIPTION_MEDIA_QUOTA_BYTES:-10737418240}
+      SRT_TRANSCRIPTION_USER_QUEUE_LIMIT: ${SRT_TRANSCRIPTION_USER_QUEUE_LIMIT:-3}
+      SRT_TRANSCRIPTION_GLOBAL_QUEUE_LIMIT: ${SRT_TRANSCRIPTION_GLOBAL_QUEUE_LIMIT:-20}
+      SRT_FC_ENDPOINT: ${SRT_FC_ENDPOINT:-}
+      SRT_FC_FUNCTION_NAME: ${SRT_FC_FUNCTION_NAME:-}
+      SRT_FC_QUALIFIER: ${SRT_FC_QUALIFIER:-LATEST}
+      SRT_FC_CALLBACK_SECRET: ${SRT_FC_CALLBACK_SECRET:-}
+      SRT_FC_STALE_JOB_SECONDS: ${SRT_FC_STALE_JOB_SECONDS:-3900}
+      SRT_FC_QUEUE_MAX_AGE_SECONDS: ${SRT_FC_QUEUE_MAX_AGE_SECONDS:-86400}
+      SRT_OSS_REGION: ${SRT_OSS_REGION:-}
+      SRT_OSS_ENDPOINT: ${SRT_OSS_ENDPOINT:-}
+      SRT_OSS_BUCKET: ${SRT_OSS_BUCKET:-}
+      SRT_OSS_PREFIX: ${SRT_OSS_PREFIX:-douyin-transcriptions}
+      SRT_OSS_MEDIA_URL_TTL_SECONDS: ${SRT_OSS_MEDIA_URL_TTL_SECONDS:-600}
+      ALIBABA_CLOUD_ACCESS_KEY_ID: ${ALIBABA_CLOUD_ACCESS_KEY_ID:-}
+      ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${ALIBABA_CLOUD_ACCESS_KEY_SECRET:-}
+      ALIBABA_CLOUD_SECURITY_TOKEN: ${ALIBABA_CLOUD_SECURITY_TOKEN:-}
+      SRT_MODERATION_API_BASE: ${SRT_MODERATION_API_BASE:-}
+      SRT_MODERATION_API_KEY: ${SRT_MODERATION_API_KEY:-}
+      SRT_MODERATION_MODEL: ${SRT_MODERATION_MODEL:-}
+      SRT_MODERATION_TIMEOUT_SECONDS: ${SRT_MODERATION_TIMEOUT_SECONDS:-30}
     volumes:
       - srt_data:/data
     expose:
       - "8000"
+    networks:
+      - edge
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
-  caddy:
-    image: caddy:2.10-alpine
+  transcription-worker:
+    container_name: chenjianru-transcription-worker
+    build:
+      context: ..
+      dockerfile: fc_worker/Dockerfile
+    image: chenjianru-transcription-worker:latest
+    profiles: ["local-transcription"]
     restart: unless-stopped
-    depends_on:
-      - api
+    command: ["python", "-m", "server.app.transcription_worker"]
     environment:
-      SRT_DOMAIN: ${SRT_DOMAIN}
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      SRT_DATA_DIR: /data
+      SRT_DOUYIN_ENABLED: ${SRT_DOUYIN_ENABLED:-true}
+      SRT_DOUYIN_COOKIE_FILE: ${SRT_DOUYIN_COOKIE_FILE:-}
+      SRT_DOUYIN_COOKIE: ${SRT_DOUYIN_COOKIE:-}
+      SRT_BHWA_API_BASE: ${SRT_BHWA_API_BASE:-https://downloader-api.bhwa233.com}
+      SRT_TRANSCRIPTION_ENABLED: ${SRT_TRANSCRIPTION_ENABLED:-true}
+      SRT_TRANSCRIPTION_BACKEND: local
+      SRT_TRANSCRIPTION_THREADS: ${SRT_TRANSCRIPTION_THREADS:-2}
+      SRT_TRANSCRIPTION_MAX_DURATION_SECONDS: ${SRT_TRANSCRIPTION_MAX_DURATION_SECONDS:-1800}
+      SRT_TRANSCRIPTION_MAX_SOURCE_BYTES: ${SRT_TRANSCRIPTION_MAX_SOURCE_BYTES:-524288000}
+      SRT_TRANSCRIPTION_MEDIA_RETENTION_HOURS: ${SRT_TRANSCRIPTION_MEDIA_RETENTION_HOURS:-168}
+      SRT_TRANSCRIPTION_MEDIA_QUOTA_BYTES: ${SRT_TRANSCRIPTION_MEDIA_QUOTA_BYTES:-10737418240}
+      SRT_TRANSCRIPTION_USER_QUEUE_LIMIT: ${SRT_TRANSCRIPTION_USER_QUEUE_LIMIT:-3}
+      SRT_TRANSCRIPTION_GLOBAL_QUEUE_LIMIT: ${SRT_TRANSCRIPTION_GLOBAL_QUEUE_LIMIT:-20}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - srt_data:/data
+    networks:
+      - edge
+    depends_on:
+      app:
+        condition: service_healthy
+    cpus: 1.75
+    mem_limit: 1150m
+
+networks:
+  edge:
+    external: true
+    name: ${PROXY_NETWORK:-luxudong_edge}
 
 volumes:
   srt_data:
-  caddy_data:
-  caddy_config:

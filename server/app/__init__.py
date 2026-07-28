@@ -1,2 +1,1 @@
-"""SRT Sub Master server package."""
-
+"""不二服务端。"""

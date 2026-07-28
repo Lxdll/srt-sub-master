@@ -1,8 +1,9 @@
 argon2-cffi==25.1.0
+alibabacloud-fc20230330==4.7.9
 fastapi==0.116.1
 httpx==0.28.1
 itsdangerous==2.2.0
+oss2==2.19.1
 python-multipart==0.0.20
 uvicorn[standard]==0.35.0
 websockets==15.0.1
-

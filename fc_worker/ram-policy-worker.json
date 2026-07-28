@@ -1,0 +1,34 @@
+{
+  "Version": "1",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "oss:GetObject",
+        "oss:PutObject",
+        "oss:DeleteObject",
+        "oss:AbortMultipartUpload",
+        "oss:ListParts"
+      ],
+      "Resource": [
+        "acs:oss:*:*:<BUCKET>/douyin-transcriptions/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "oss:ListObjects"
+      ],
+      "Resource": [
+        "acs:oss:*:*:<BUCKET>"
+      ],
+      "Condition": {
+        "StringLike": {
+          "oss:Prefix": [
+            "douyin-transcriptions/*"
+          ]
+        }
+      }
+    }
+  ]
+}

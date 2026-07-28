@@ -17,6 +17,13 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS user_permissions (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    permission_key TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, permission_key)
+);
+
 CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -64,6 +71,38 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE INDEX IF NOT EXISTS idx_tasks_user_created
 ON tasks(user_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS server_transcription_jobs (
+    task_id TEXT PRIMARY KEY REFERENCES tasks(id) ON DELETE CASCADE,
+    source_url TEXT NOT NULL,
+    aweme_id TEXT NOT NULL,
+    media_filename TEXT,
+    media_expires_at TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    claimed_at TEXT,
+    fc_task_id TEXT,
+    oss_media_key TEXT,
+    oss_result_key TEXT,
+    completed_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_server_transcription_jobs_created
+ON server_transcription_jobs(created_at);
+
+CREATE TABLE IF NOT EXISTS fc_callback_receipts (
+    nonce TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    received_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS service_heartbeats (
+    service TEXT PRIMARY KEY,
+    current_task_id TEXT,
+    details_json TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS segments (
     id TEXT PRIMARY KEY,
     task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -96,6 +135,18 @@ CREATE TABLE IF NOT EXISTS pending_commands (
     created_at TEXT NOT NULL,
     delivered_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS user_prohibited_words (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    term TEXT NOT NULL,
+    normalized_term TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(user_id, normalized_term)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_prohibited_words_created
+ON user_prohibited_words(user_id, created_at);
 """
 
 
@@ -115,7 +166,41 @@ def connect() -> sqlite3.Connection:
 
 def initialize_database() -> None:
     with connect() as connection:
+        permissions_table_existed = connection.execute(
+            """
+            SELECT 1 FROM sqlite_master
+            WHERE type = 'table' AND name = 'user_permissions'
+            """
+        ).fetchone()
         connection.executescript(SCHEMA)
+        job_columns = {
+            row["name"]
+            for row in connection.execute(
+                "PRAGMA table_info(server_transcription_jobs)"
+            ).fetchall()
+        }
+        for name, definition in (
+            ("fc_task_id", "TEXT"),
+            ("oss_media_key", "TEXT"),
+            ("oss_result_key", "TEXT"),
+            ("completed_at", "TEXT"),
+        ):
+            if name not in job_columns:
+                connection.execute(
+                    f"ALTER TABLE server_transcription_jobs "
+                    f"ADD COLUMN {name} {definition}"
+                )
+        if not permissions_table_existed:
+            for permission_key in ("subtitle_workspace", "douyin_download"):
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO user_permissions(
+                        user_id, permission_key, created_at
+                    )
+                    SELECT id, ?, ? FROM users WHERE is_admin = 0
+                    """,
+                    (permission_key, utc_now()),
+                )
 
 
 @contextmanager
@@ -129,4 +214,3 @@ def db_session() -> Iterator[sqlite3.Connection]:
         raise
     finally:
         connection.close()
-

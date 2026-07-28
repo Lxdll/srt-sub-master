@@ -15,6 +15,9 @@ from .db import db_session, utc_now
 
 
 password_hasher = PasswordHasher()
+FEATURE_PERMISSIONS = frozenset(
+    {"subtitle_workspace", "douyin_download", "prohibited_word_check"}
+)
 command_serializer = URLSafeTimedSerializer(
     settings.session_secret, salt="srt-local-command"
 )
@@ -68,7 +71,17 @@ def _load_session(raw_token: str | None) -> dict[str, Any]:
         ).fetchone()
     if not row or datetime.fromisoformat(row["expires_at"]) <= datetime.now(UTC):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
-    return dict(row)
+    result = dict(row)
+    if result["is_admin"]:
+        result["permissions"] = sorted(FEATURE_PERMISSIONS)
+    else:
+        with db_session() as db:
+            permissions = db.execute(
+                "SELECT permission_key FROM user_permissions WHERE user_id = ?",
+                (result["id"],),
+            ).fetchall()
+        result["permissions"] = [item["permission_key"] for item in permissions]
+    return result
 
 
 def current_user(srt_session: str | None = Cookie(default=None)) -> dict[str, Any]:
@@ -79,6 +92,38 @@ def admin_user(user: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
     if not user["is_admin"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     return user
+
+
+def ensure_permission(user: dict[str, Any], permission_key: str) -> None:
+    if user["is_admin"] or permission_key in user.get("permissions", []):
+        return
+    raise HTTPException(status_code=403, detail="当前账号没有此功能的使用权限")
+
+
+def ensure_any_feature(user: dict[str, Any]) -> None:
+    if user["is_admin"] or FEATURE_PERMISSIONS.intersection(
+        user.get("permissions", [])
+    ):
+        return
+    raise HTTPException(status_code=403, detail="当前账号尚未分配功能权限")
+
+
+def ensure_user_id_permission(user_id: str, permission_key: str) -> None:
+    with db_session() as db:
+        row = db.execute(
+            "SELECT is_admin FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        permitted = db.execute(
+            """
+            SELECT 1 FROM user_permissions
+            WHERE user_id = ? AND permission_key = ?
+            """,
+            (user_id, permission_key),
+        ).fetchone()
+    if row and (row["is_admin"] or permitted):
+        return
+    raise HTTPException(status_code=403, detail="当前账号没有此功能的使用权限")
 
 
 def require_csrf(
@@ -109,9 +154,19 @@ def agent_device(
     return dict(row)
 
 
-def sign_local_command(user_id: str, device_id: str, task_id: str | None) -> str:
+def sign_local_command(
+    user_id: str,
+    device_id: str,
+    task_id: str | None,
+    permission_key: str,
+) -> str:
     return command_serializer.dumps(
-        {"user_id": user_id, "device_id": device_id, "task_id": task_id}
+        {
+            "user_id": user_id,
+            "device_id": device_id,
+            "task_id": task_id,
+            "permission_key": permission_key,
+        }
     )
 
 

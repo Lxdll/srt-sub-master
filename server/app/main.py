@@ -14,34 +14,57 @@ from uuid import uuid4
 from fastapi import (
     Depends,
     FastAPI,
+    File,
     HTTPException,
     Request,
     Response,
+    UploadFile,
     WebSocket,
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 
+from .cloud_transcription import (
+    CloudTranscriptionError,
+    cloud_transcription_service,
+)
 from .config import settings
 from .db import db_session, initialize_database, utc_now
+from .douyin import douyin_service
+from douyin_engine import DouyinError, content_disposition
+from .prohibited_words import ProhibitedWordsError, prohibited_word_service
 from .schemas import (
+    AdminResetPasswordRequest,
     AttachAssetRequest,
+    ChangePasswordRequest,
     CreateTaskRequest,
     CreateUserRequest,
+    CustomProhibitedWordRequest,
+    CustomProhibitedWordResponse,
+    DouyinParseRequest,
+    DouyinParseResponse,
+    DouyinTranscriptionRequest,
+    DouyinTranscriptionResponse,
     EditSegmentRequest,
     LoginRequest,
     PairDeviceRequest,
+    ProhibitedWordsCheckRequest,
+    ProhibitedWordsCheckResponse,
     TaskProgressRequest,
     TaskResultRequest,
+    UpdateUserPermissionsRequest,
     VerifyCommandRequest,
 )
 from .security import (
+    FEATURE_PERMISSIONS,
     admin_user,
     agent_device,
     create_session,
     current_user,
+    ensure_any_feature,
+    ensure_permission,
+    ensure_user_id_permission,
     hash_password,
     new_token,
     require_csrf,
@@ -49,6 +72,19 @@ from .security import (
     token_hash,
     verify_local_command,
     verify_password,
+)
+from .srt import SrtError, parse_srt
+from .transcription import (
+    TranscriptionError,
+    cleanup_expired_media,
+    create_transcription_task,
+    delete_job_media,
+    media_record,
+    recover_stale_cloud_jobs,
+    resolve_media_path,
+    retry_server_job,
+    task_transcription_metadata,
+    transcription_status,
 )
 
 
@@ -78,11 +114,14 @@ def _bootstrap_admin() -> None:
 async def lifespan(_: FastAPI):
     initialize_database()
     _bootstrap_admin()
-    yield
+    try:
+        yield
+    finally:
+        await douyin_service.close()
 
 
 app = FastAPI(
-    title="SRT Sub Master API",
+    title="不二 API",
     version="0.1.0",
     lifespan=lifespan,
     docs_url="/api/docs",
@@ -95,6 +134,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.post("/api/internal/fc/transcription-events", include_in_schema=False)
+async def receive_fc_transcription_event(request: Request) -> dict[str, Any]:
+    body = await request.body()
+    if len(body) > 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Callback body is too large")
+    timestamp = request.headers.get("x-srt-timestamp")
+    nonce = request.headers.get("x-srt-nonce")
+    signature = request.headers.get("x-srt-signature")
+    try:
+        cloud_transcription_service.verify_callback(
+            body,
+            timestamp,
+            nonce,
+            signature,
+        )
+        payload = json.loads(body)
+        if not isinstance(payload, dict):
+            raise CloudTranscriptionError("FC 回调内容无效。")
+        processed = cloud_transcription_service.handle_callback(
+            payload,
+            nonce or "",
+        )
+    except (CloudTranscriptionError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+    return {"ok": True, "processed": processed}
 
 
 def _task_for_user(task_id: str, user_id: str) -> sqlite3.Row:
@@ -125,9 +191,275 @@ def _device_online(last_seen: str | None) -> bool:
     return datetime.fromisoformat(last_seen) > datetime.now(UTC) - timedelta(seconds=45)
 
 
+def _permissions_for_user(user_id: str, is_admin: bool) -> list[str]:
+    if is_admin:
+        return sorted(FEATURE_PERMISSIONS)
+    with db_session() as db:
+        rows = db.execute(
+            """
+            SELECT permission_key FROM user_permissions
+            WHERE user_id = ?
+            ORDER BY permission_key
+            """,
+            (user_id,),
+        ).fetchall()
+    return [row["permission_key"] for row in rows]
+
+
+def _public_user(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+    is_admin = bool(row["is_admin"])
+    result = {
+        "id": row["id"],
+        "username": row["username"],
+        "is_admin": is_admin,
+        "permissions": _permissions_for_user(row["id"], is_admin),
+    }
+    if "created_at" in row.keys():
+        result["created_at"] = row["created_at"]
+    return result
+
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+def _douyin_http_error(exc: DouyinError) -> HTTPException:
+    return HTTPException(
+        status_code=exc.status_code,
+        detail=str(exc),
+        headers={"X-Douyin-Error": exc.code},
+    )
+
+
+def _douyin_stream_response(stream: Any, *, attachment: bool) -> StreamingResponse:
+    upstream = stream.response
+    headers = {
+        "Accept-Ranges": upstream.headers.get("accept-ranges", "bytes"),
+        "Cache-Control": "private, no-store",
+    }
+    if attachment:
+        headers["Content-Disposition"] = content_disposition(stream.filename)
+    for source, target in (
+        ("content-length", "Content-Length"),
+        ("content-range", "Content-Range"),
+        ("etag", "ETag"),
+        ("last-modified", "Last-Modified"),
+    ):
+        if upstream.headers.get(source):
+            headers[target] = upstream.headers[source]
+    return StreamingResponse(
+        stream.body(),
+        status_code=upstream.status_code,
+        media_type=upstream.headers.get("content-type", "video/mp4"),
+        headers=headers,
+    )
+
+
+@app.post("/api/douyin/parse", response_model=DouyinParseResponse)
+async def parse_douyin(
+    payload: DouyinParseRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    require_csrf(request, user)
+    ensure_permission(user, "douyin_download")
+    try:
+        return await douyin_service.parse(user, payload.text)
+    except DouyinError as exc:
+        raise _douyin_http_error(exc) from exc
+
+
+@app.post(
+    "/api/douyin/transcriptions",
+    response_model=DouyinTranscriptionResponse,
+    status_code=202,
+)
+async def create_douyin_transcription(
+    payload: DouyinTranscriptionRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, str]:
+    require_csrf(request, user)
+    ensure_permission(user, "douyin_download")
+    ensure_permission(user, "subtitle_workspace")
+    try:
+        task_id = await create_transcription_task(user, payload.text)
+    except DouyinError as exc:
+        raise _douyin_http_error(exc) from exc
+    except TranscriptionError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    return {"task_id": task_id}
+
+
+@app.get("/api/douyin/download/{ticket}")
+async def download_douyin(
+    ticket: str,
+    request: Request,
+    quality: str | None = None,
+    user: dict[str, Any] = Depends(current_user),
+) -> StreamingResponse:
+    ensure_permission(user, "douyin_download")
+    try:
+        stream = await douyin_service.open_download(
+            user,
+            ticket,
+            quality,
+            request.headers.get("range"),
+        )
+    except DouyinError as exc:
+        raise _douyin_http_error(exc) from exc
+    return _douyin_stream_response(stream, attachment=True)
+
+
+@app.get("/api/douyin/preview/{ticket}")
+async def preview_douyin(
+    ticket: str,
+    request: Request,
+    quality: str | None = None,
+    user: dict[str, Any] = Depends(current_user),
+) -> StreamingResponse:
+    ensure_permission(user, "douyin_download")
+    try:
+        stream = await douyin_service.open_download(
+            user,
+            ticket,
+            quality,
+            request.headers.get("range"),
+        )
+    except DouyinError as exc:
+        raise _douyin_http_error(exc) from exc
+    return _douyin_stream_response(stream, attachment=False)
+
+
+@app.get("/api/admin/douyin/status")
+def douyin_status(
+    user: dict[str, Any] = Depends(admin_user),
+) -> dict[str, Any]:
+    douyin_service.ensure_access(user)
+    return {
+        **douyin_service.status(),
+        "transcription": transcription_status(),
+    }
+
+
+@app.get(
+    "/api/prohibited-words/custom",
+    response_model=list[CustomProhibitedWordResponse],
+)
+def list_custom_prohibited_words(
+    request: Request,
+    user: dict[str, Any] = Depends(current_user),
+) -> list[dict[str, Any]]:
+    require_csrf(request, user)
+    ensure_permission(user, "prohibited_word_check")
+    with db_session() as db:
+        rows = db.execute(
+            """
+            SELECT id, term, created_at
+            FROM user_prohibited_words
+            WHERE user_id = ?
+            ORDER BY created_at, term COLLATE NOCASE
+            """,
+            (user["id"],),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+@app.post(
+    "/api/prohibited-words/custom",
+    response_model=CustomProhibitedWordResponse,
+    status_code=201,
+)
+def add_custom_prohibited_word(
+    payload: CustomProhibitedWordRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    require_csrf(request, user)
+    ensure_permission(user, "prohibited_word_check")
+    term = payload.term.strip()
+    if not term:
+        raise HTTPException(status_code=422, detail="违禁词不能为空")
+    word = {
+        "id": _id(),
+        "term": term,
+        "created_at": utc_now(),
+    }
+    try:
+        with db_session() as db:
+            db.execute(
+                """
+                INSERT INTO user_prohibited_words(
+                    id, user_id, term, normalized_term, created_at
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    word["id"],
+                    user["id"],
+                    word["term"],
+                    word["term"].casefold(),
+                    word["created_at"],
+                ),
+            )
+    except sqlite3.IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="该违禁词已存在") from exc
+    return word
+
+
+@app.delete("/api/prohibited-words/custom/{word_id}")
+def delete_custom_prohibited_word(
+    word_id: str,
+    request: Request,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, bool]:
+    require_csrf(request, user)
+    ensure_permission(user, "prohibited_word_check")
+    with db_session() as db:
+        cursor = db.execute(
+            """
+            DELETE FROM user_prohibited_words
+            WHERE id = ? AND user_id = ?
+            """,
+            (word_id, user["id"]),
+        )
+        deleted = cursor.rowcount
+    if not deleted:
+        raise HTTPException(status_code=404, detail="违禁词不存在")
+    return {"ok": True}
+
+
+@app.post(
+    "/api/prohibited-words/check",
+    response_model=ProhibitedWordsCheckResponse,
+)
+async def check_prohibited_words(
+    payload: ProhibitedWordsCheckRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    require_csrf(request, user)
+    ensure_permission(user, "prohibited_word_check")
+    if not payload.text.strip():
+        raise HTTPException(status_code=422, detail="待检测文字不能为空")
+    with db_session() as db:
+        custom_terms = [
+            row["term"]
+            for row in db.execute(
+                """
+                SELECT term
+                FROM user_prohibited_words
+                WHERE user_id = ?
+                ORDER BY created_at
+                """,
+                (user["id"],),
+            ).fetchall()
+        ]
+    try:
+        return await prohibited_word_service.check(payload.text, custom_terms)
+    except ProhibitedWordsError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 
 @app.post("/api/auth/login")
@@ -150,11 +482,7 @@ def login(payload: LoginRequest, response: Response) -> dict[str, Any]:
         path="/",
     )
     return {
-        "user": {
-            "id": row["id"],
-            "username": row["username"],
-            "is_admin": bool(row["is_admin"]),
-        },
+        "user": _public_user(row),
         "csrf_token": csrf,
     }
 
@@ -162,11 +490,7 @@ def login(payload: LoginRequest, response: Response) -> dict[str, Any]:
 @app.get("/api/auth/me")
 def me(user: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
     return {
-        "user": {
-            "id": user["id"],
-            "username": user["username"],
-            "is_admin": bool(user["is_admin"]),
-        },
+        "user": _public_user(user),
         "csrf_token": user["csrf_token"],
     }
 
@@ -209,13 +533,133 @@ def create_user(
                     utc_now(),
                 ),
             )
+            if not payload.is_admin:
+                db.executemany(
+                    """
+                    INSERT INTO user_permissions(user_id, permission_key, created_at)
+                    VALUES (?, ?, ?)
+                    """,
+                    [
+                        (user_id, permission_key, utc_now())
+                        for permission_key in sorted(set(payload.permissions))
+                    ],
+                )
     except sqlite3.IntegrityError as exc:
         raise HTTPException(status_code=409, detail="用户名已存在") from exc
     return {
         "id": user_id,
         "username": payload.username,
         "is_admin": payload.is_admin,
+        "permissions": (
+            sorted(FEATURE_PERMISSIONS)
+            if payload.is_admin
+            else sorted(set(payload.permissions))
+        ),
     }
+
+
+@app.get("/api/admin/users")
+def list_users(
+    user: dict[str, Any] = Depends(admin_user),
+) -> list[dict[str, Any]]:
+    with db_session() as db:
+        rows = db.execute(
+            """
+            SELECT id, username, is_admin, created_at
+            FROM users
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+    return [_public_user(row) for row in rows]
+
+
+@app.patch("/api/admin/users/{user_id}/permissions")
+def update_user_permissions(
+    user_id: str,
+    payload: UpdateUserPermissionsRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(admin_user),
+) -> dict[str, Any]:
+    require_csrf(request, user)
+    with db_session() as db:
+        target = db.execute(
+            "SELECT * FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        if not target:
+            raise HTTPException(status_code=404, detail="账号不存在")
+        if target["is_admin"]:
+            raise HTTPException(status_code=409, detail="管理员默认拥有全部权限")
+        permissions = sorted(set(payload.permissions))
+        db.execute("DELETE FROM user_permissions WHERE user_id = ?", (user_id,))
+        db.executemany(
+            """
+            INSERT INTO user_permissions(user_id, permission_key, created_at)
+            VALUES (?, ?, ?)
+            """,
+            [(user_id, permission_key, utc_now()) for permission_key in permissions],
+        )
+    return {
+        "id": target["id"],
+        "username": target["username"],
+        "is_admin": False,
+        "permissions": permissions,
+        "created_at": target["created_at"],
+    }
+
+
+@app.patch("/api/admin/users/{user_id}/password")
+def admin_reset_password(
+    user_id: str,
+    payload: AdminResetPasswordRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(admin_user),
+) -> dict[str, bool]:
+    require_csrf(request, user)
+    with db_session() as db:
+        target = db.execute(
+            "SELECT is_admin FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        if not target:
+            raise HTTPException(status_code=404, detail="账号不存在")
+        if target["is_admin"]:
+            raise HTTPException(status_code=409, detail="请在主站修改管理员自己的密码")
+        db.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (hash_password(payload.password), user_id),
+        )
+        db.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+    return {"ok": True}
+
+
+@app.patch("/api/auth/password")
+def change_password(
+    payload: ChangePasswordRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, bool]:
+    require_csrf(request, user)
+    raw_session = request.cookies.get("srt_session")
+    with db_session() as db:
+        target = db.execute(
+            "SELECT password_hash FROM users WHERE id = ?",
+            (user["id"],),
+        ).fetchone()
+        if not target or not verify_password(
+            target["password_hash"], payload.current_password
+        ):
+            raise HTTPException(status_code=400, detail="当前密码不正确")
+        db.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (hash_password(payload.new_password), user["id"]),
+        )
+        if raw_session:
+            db.execute(
+                "DELETE FROM sessions WHERE user_id = ? AND token_hash != ?",
+                (user["id"], token_hash(raw_session)),
+            )
+    return {"ok": True}
 
 
 @app.post("/api/devices/pair-code")
@@ -224,6 +668,7 @@ def create_pair_code(
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
     require_csrf(request, user)
+    ensure_any_feature(user)
     code = "-".join(
         [
             "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(4)),
@@ -290,6 +735,7 @@ def pair_device(payload: PairDeviceRequest) -> dict[str, Any]:
 
 @app.get("/api/devices")
 def list_devices(user: dict[str, Any] = Depends(current_user)) -> list[dict[str, Any]]:
+    ensure_any_feature(user)
     with db_session() as db:
         rows = db.execute(
             "SELECT * FROM devices WHERE user_id = ? ORDER BY created_at DESC",
@@ -318,9 +764,15 @@ def create_command_token(
 ) -> dict[str, str]:
     require_csrf(request, user)
     _device_for_user(device_id, user["id"])
+    permission_key = "subtitle_workspace" if task_id else "douyin_download"
+    ensure_permission(user, permission_key)
     if task_id:
         _task_for_user(task_id, user["id"])
-    return {"token": sign_local_command(user["id"], device_id, task_id)}
+    return {
+        "token": sign_local_command(
+            user["id"], device_id, task_id, permission_key
+        )
+    }
 
 
 @app.post("/api/tasks")
@@ -330,6 +782,7 @@ def create_task(
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
     require_csrf(request, user)
+    ensure_permission(user, "subtitle_workspace")
     _device_for_user(payload.device_id, user["id"])
     task_id = _id()
     now = utc_now()
@@ -354,12 +807,14 @@ def create_task(
         )
     return {
         "id": task_id,
-        "command_token": sign_local_command(user["id"], payload.device_id, task_id),
+        "command_token": sign_local_command(
+            user["id"], payload.device_id, task_id, "subtitle_workspace"
+        ),
     }
 
 
 def _serialize_task(row: sqlite3.Row) -> dict[str, Any]:
-    return {
+    result = {
         "id": row["id"],
         "device_id": row["device_id"],
         "original_name": row["original_name"],
@@ -373,10 +828,14 @@ def _serialize_task(row: sqlite3.Row) -> dict[str, Any]:
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
+    result.update(task_transcription_metadata(row["id"]))
+    return result
 
 
 @app.get("/api/tasks")
 def list_tasks(user: dict[str, Any] = Depends(current_user)) -> list[dict[str, Any]]:
+    ensure_permission(user, "subtitle_workspace")
+    recover_stale_cloud_jobs()
     with db_session() as db:
         rows = db.execute(
             "SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC",
@@ -385,11 +844,86 @@ def list_tasks(user: dict[str, Any] = Depends(current_user)) -> list[dict[str, A
     return [_serialize_task(row) for row in rows]
 
 
+@app.post("/api/tasks/import-srt")
+async def import_srt(
+    request: Request,
+    file: UploadFile = File(...),
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, str]:
+    require_csrf(request, user)
+    ensure_permission(user, "subtitle_workspace")
+    original_name = Path(file.filename or "").name
+    if not original_name or Path(original_name).suffix.lower() != ".srt":
+        raise HTTPException(status_code=400, detail="请选择 SRT 字幕文件")
+    if len(original_name) > 255:
+        raise HTTPException(status_code=400, detail="SRT 文件名不能超过 255 个字符")
+    content = await file.read(5 * 1024 * 1024 + 1)
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="SRT 文件不能超过 5MB")
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status_code=400, detail="SRT 必须使用 UTF-8 编码") from exc
+    try:
+        parsed = parse_srt(text)
+    except SrtError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    task_id = _id()
+    now = utc_now()
+    duration_ms = max(segment["end_ms"] for segment in parsed)
+    digest = hashlib.sha256(content).hexdigest()
+    with db_session() as db:
+        db.execute(
+            """
+            INSERT INTO tasks(
+                id, user_id, device_id, original_name, size_bytes,
+                duration_ms, sha256, model_id, status, progress,
+                created_at, updated_at
+            ) VALUES (?, ?, NULL, ?, ?, ?, ?, 'imported-srt', 'ready', 100, ?, ?)
+            """,
+            (
+                task_id,
+                user["id"],
+                original_name,
+                len(content),
+                duration_ms,
+                digest,
+                now,
+                now,
+            ),
+        )
+        db.executemany(
+            """
+            INSERT INTO segments(
+                id, task_id, ordinal, start_ms, end_ms,
+                original_text, edited_text, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    _id(),
+                    task_id,
+                    ordinal,
+                    segment["start_ms"],
+                    segment["end_ms"],
+                    segment["text"],
+                    segment["text"],
+                    now,
+                )
+                for ordinal, segment in enumerate(parsed)
+            ],
+        )
+    return {"id": task_id}
+
+
 @app.get("/api/tasks/{task_id}")
 def get_task(
     task_id: str,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
+    ensure_permission(user, "subtitle_workspace")
+    recover_stale_cloud_jobs()
     task = _task_for_user(task_id, user["id"])
     with db_session() as db:
         segments = db.execute(
@@ -429,6 +963,47 @@ def get_task(
     return result
 
 
+@app.get("/api/tasks/{task_id}/media")
+def get_task_media(
+    task_id: str,
+    user: dict[str, Any] = Depends(current_user),
+) -> Response:
+    ensure_permission(user, "subtitle_workspace")
+    ensure_permission(user, "douyin_download")
+    _task_for_user(task_id, user["id"])
+    cleanup_expired_media()
+    record = media_record(task_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="该任务没有服务器视频。")
+    if record["oss_media_key"]:
+        expires_at = (
+            datetime.fromisoformat(record["media_expires_at"])
+            if record["media_expires_at"]
+            else None
+        )
+        if not expires_at or expires_at <= datetime.now(UTC):
+            raise HTTPException(status_code=410, detail="校对视频已过期，字幕仍可继续编辑。")
+        try:
+            url = cloud_transcription_service.media_url(record["oss_media_key"])
+        except CloudTranscriptionError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        return RedirectResponse(
+            url,
+            status_code=302,
+            headers={"Cache-Control": "private, no-store"},
+        )
+    if not record["media_filename"]:
+        raise HTTPException(status_code=410, detail="校对视频已过期，字幕仍可继续编辑。")
+    path = resolve_media_path(record["media_filename"])
+    if not path or not path.is_file():
+        raise HTTPException(status_code=410, detail="校对视频已过期，字幕仍可继续编辑。")
+    return FileResponse(
+        path,
+        media_type="video/mp4",
+        headers={"Cache-Control": "private, no-store"},
+    )
+
+
 @app.patch("/api/tasks/{task_id}/segments/{segment_id}")
 def edit_segment(
     task_id: str,
@@ -438,6 +1013,7 @@ def edit_segment(
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
     require_csrf(request, user)
+    ensure_permission(user, "subtitle_workspace")
     _task_for_user(task_id, user["id"])
     with db_session() as db:
         cursor = db.execute(
@@ -453,14 +1029,23 @@ def edit_segment(
 
 
 @app.post("/api/tasks/{task_id}/retry")
-def retry_task(
+async def retry_task(
     task_id: str,
     request: Request,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, bool]:
     require_csrf(request, user)
+    ensure_permission(user, "subtitle_workspace")
     task = _task_for_user(task_id, user["id"])
-    if task["status"] != "failed" or not task["device_id"]:
+    if task["status"] != "failed":
+        raise HTTPException(status_code=409, detail="Only failed tasks can be retried")
+    try:
+        if await retry_server_job(task_id, user):
+            return {"ok": True}
+    except (DouyinError, TranscriptionError) as exc:
+        status_code = getattr(exc, "status_code", 422)
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+    if not task["device_id"]:
         raise HTTPException(status_code=409, detail="Only failed tasks can be retried")
     with db_session() as db:
         db.execute(
@@ -488,9 +1073,14 @@ def relink_task(
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, str]:
     require_csrf(request, user)
+    ensure_permission(user, "subtitle_workspace")
     _task_for_user(task_id, user["id"])
     _device_for_user(device_id, user["id"])
-    return {"command_token": sign_local_command(user["id"], device_id, task_id)}
+    return {
+        "command_token": sign_local_command(
+            user["id"], device_id, task_id, "subtitle_workspace"
+        )
+    }
 
 
 def _srt_time(milliseconds: int) -> str:
@@ -506,6 +1096,7 @@ def export_task(
     format: str,
     user: dict[str, Any] = Depends(current_user),
 ) -> Response:
+    ensure_permission(user, "subtitle_workspace")
     task = _task_for_user(task_id, user["id"])
     if format not in {"txt", "srt"}:
         raise HTTPException(status_code=400, detail="format must be txt or srt")
@@ -544,8 +1135,16 @@ def delete_task(
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, bool]:
     require_csrf(request, user)
+    ensure_permission(user, "subtitle_workspace")
     _task_for_user(task_id, user["id"])
+    is_server_job = False
     with db_session() as db:
+        is_server_job = bool(
+            db.execute(
+                "SELECT 1 FROM server_transcription_jobs WHERE task_id = ?",
+                (task_id,),
+            ).fetchone()
+        )
         assets = db.execute(
             "SELECT * FROM device_assets WHERE task_id = ?", (task_id,)
         ).fetchall()
@@ -568,6 +1167,9 @@ def delete_task(
                     utc_now(),
                 ),
             )
+    if is_server_job:
+        delete_job_media(task_id)
+    with db_session() as db:
         db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
     return {"ok": True}
 
@@ -582,10 +1184,15 @@ def verify_command(
         raise HTTPException(status_code=403, detail="Wrong device")
     if payload.task_id and data.get("task_id") != payload.task_id:
         raise HTTPException(status_code=403, detail="Wrong task")
+    permission_key = data.get("permission_key")
+    if permission_key not in FEATURE_PERMISSIONS:
+        raise HTTPException(status_code=403, detail="Command permission invalid")
+    ensure_user_id_permission(data["user_id"], permission_key)
     return {"ok": True, "user_id": data["user_id"], "task_id": data.get("task_id")}
 
 
 def _ensure_agent_task(task_id: str, device: dict[str, Any]) -> sqlite3.Row:
+    ensure_user_id_permission(device["user_id"], "subtitle_workspace")
     with db_session() as db:
         row = db.execute(
             "SELECT * FROM tasks WHERE id = ? AND device_id = ? AND user_id = ?",
@@ -715,6 +1322,7 @@ def agent_attach_asset(
     payload: AttachAssetRequest,
     device: dict[str, Any] = Depends(agent_device),
 ) -> dict[str, bool]:
+    ensure_user_id_permission(device["user_id"], "subtitle_workspace")
     with db_session() as db:
         task = db.execute(
             "SELECT * FROM tasks WHERE id = ? AND user_id = ?",
@@ -811,14 +1419,6 @@ async def agent_socket(websocket: WebSocket) -> None:
                 await websocket.send_json({"type": "heartbeat_ack"})
     except WebSocketDisconnect:
         return
-
-
-settings.downloads_dir.mkdir(parents=True, exist_ok=True)
-app.mount(
-    "/downloads",
-    StaticFiles(directory=settings.downloads_dir),
-    name="downloads",
-)
 
 
 @app.get("/{full_path:path}", include_in_schema=False)

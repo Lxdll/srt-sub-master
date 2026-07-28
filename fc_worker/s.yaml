@@ -1,0 +1,32 @@
+edition: 3.0.0
+name: srt-sub-transcription
+access: default
+
+resources:
+  transcription:
+    component: fc3
+    props:
+      region: ${env('SRT_OSS_REGION')}
+      functionName: ${env('SRT_FC_FUNCTION_NAME')}
+      description: Douyin video transcription with whisper.cpp
+      runtime: custom-container
+      timeout: 3600
+      memorySize: 4096
+      cpu: 4
+      diskSize: 512
+      instanceConcurrency: 1
+      internetAccess: true
+      role: ${env('SRT_FC_ROLE_ARN')}
+      code: ../
+      logConfig: auto
+      environmentVariables:
+        SRT_OSS_REGION: ${env('SRT_OSS_REGION')}
+        SRT_OSS_INTERNAL_ENDPOINT: ${env('SRT_OSS_INTERNAL_ENDPOINT')}
+        SRT_OSS_BUCKET: ${env('SRT_OSS_BUCKET')}
+        SRT_FC_CALLBACK_URL: ${env('SRT_FC_CALLBACK_URL')}
+        SRT_FC_CALLBACK_SECRET: ${env('SRT_FC_CALLBACK_SECRET')}
+        SRT_TRANSCRIPTION_THREADS: "4"
+      customContainerConfig:
+        image: ${env('SRT_FC_IMAGE')}
+        port: 9000
+        accelerationType: Default
