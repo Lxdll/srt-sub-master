@@ -37,37 +37,40 @@ SRT_OSS_BUCKET=your-private-bucket
 SRT_FC_FUNCTION_NAME=srt-sub-transcription
 SRT_FC_ENDPOINT=<ACCOUNT_ID>.cn-hangzhou.fc.aliyuncs.com
 SRT_FC_ROLE_ARN=acs:ram::<ACCOUNT_ID>:role/<ROLE_NAME>
-SRT_FC_IMAGE_PUSH=registry.cn-hangzhou.aliyuncs.com/<NAMESPACE>/<REPOSITORY>:<TAG>
-SRT_FC_IMAGE=registry-vpc.cn-hangzhou.aliyuncs.com/<NAMESPACE>/<REPOSITORY>:<TAG>
+SRT_FC_IMAGE_PUSH=<ACR 仓库提供的公网镜像地址>:<TAG>
+SRT_FC_IMAGE=<FC 实际拉取使用的同地域镜像地址>:<TAG>
 SRT_FC_CALLBACK_URL=https://subtitles.example.com/api/internal/fc/transcription-events
 SRT_FC_CALLBACK_SECRET=<至少32位随机字符串>
 ALIBABA_CLOUD_ACCESS_KEY_ID=<具有部署和配置函数权限的RAM用户>
 ALIBABA_CLOUD_ACCESS_KEY_SECRET=<密钥>
 ```
 
-`SRT_FC_IMAGE_PUSH` 是本地电脑向 ACR 推送镜像使用的公网地址；
-`SRT_FC_IMAGE` 是 FC 拉取同一个镜像使用的 VPC 地址。两者的地域、
-命名空间、仓库和标签必须完全一致，只是域名不同。请优先从 ACR
-仓库的“基本信息/操作指南”页面复制实际地址。
+`SRT_FC_IMAGE_PUSH` 是本地电脑向 ACR 推送镜像使用的地址；
+`SRT_FC_IMAGE` 是 FC 拉取同一个镜像使用的地址。企业版 ACR 通常使用
+VPC 地址；个人版 ACR 可直接使用仓库操作指南给出的同地域公网地址。
+两者必须指向同一个仓库和标签，请勿手工猜测域名。
 
-Apple Silicon 构建时必须生成 AMD64 镜像：
+Apple Silicon 构建时必须生成单一的 AMD64 Docker 镜像，并关闭
+provenance/SBOM 附件。否则镜像索引可能额外包含 `unknown/unknown`
+条目，导致 FC 报 `ImageOptimizingFailed`：
 
 ```bash
-docker build --platform linux/amd64 \
+docker buildx build \
+  --platform linux/amd64 \
+  --provenance=false \
+  --sbom=false \
+  --output type=image,push=true,oci-mediatypes=false \
   -f fc_worker/Dockerfile \
   -t "$SRT_FC_IMAGE_PUSH" .
-docker push "$SRT_FC_IMAGE_PUSH"
 cd fc_worker
-s deploy -y
-cd ..
-server/.venv/bin/python fc_worker/configure.py
+s deploy -y --skip-push
 ```
 
 其中 `s deploy -y` 会创建名为 `SRT_FC_FUNCTION_NAME` 的 CPU
 自定义容器函数；不需要先在 FC 控制台手动创建函数。如果该名称的函数
 已经存在，则会更新该函数配置。
 
-`configure.py` 会开启异步任务模式、把最大重试次数设为 0、消息寿命设为
+`s.yaml` 会同时开启异步任务模式、把最大重试次数设为 0、消息寿命设为
 24 小时、预留并发设为 1，并把最小实例数设为 0。部署后仍应在 FC 控制台
 复核以下设置：
 
