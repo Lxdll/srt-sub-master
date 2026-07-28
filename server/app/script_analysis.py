@@ -327,7 +327,7 @@ class ScriptAnalysisService:
             payload["enable_thinking"] = False
         try:
             async with httpx.AsyncClient(
-                timeout=self.config.moderation_timeout_seconds,
+                timeout=self.config.script_analysis_timeout_seconds,
                 transport=self.transport,
             ) as client:
                 response = await client.post(

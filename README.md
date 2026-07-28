@@ -86,6 +86,7 @@ SRT_MODERATION_API_BASE=https://api.example.com/v1
 SRT_MODERATION_API_KEY=replace-with-api-key
 SRT_MODERATION_MODEL=replace-with-model-name
 SRT_MODERATION_TIMEOUT_SECONDS=30
+SRT_SCRIPT_ANALYSIS_TIMEOUT_SECONDS=150
 ```
 
 `SRT_MODERATION_API_BASE` 应指向提供 `/chat/completions` 的 API 根路径。未完整配置时检测接口会明确返回“模型尚未配置”，不会把调用失败当作无风险。检测文字会发送到所配置的第三方模型服务，请根据该服务的隐私政策和数据处理条款使用。
@@ -100,6 +101,7 @@ SRT_MODERATION_TIMEOUT_SECONDS=30
 脚本和分析结果不写入数据库。为了防止模型虚构原文，逐段拆解、亮点和钩子的
 原文摘录会在服务端再次校验，不存在于原脚本中的项目不会返回。脚本文字会发送
 到所配置的第三方模型服务，请根据该服务的隐私政策和数据处理条款使用。
+脚本拆解默认允许模型响应 150 秒，与更轻量的违禁词检测超时分别配置。
 
 ## 抖音视频下载
 

@@ -58,6 +58,7 @@ class Settings:
     moderation_api_key: str
     moderation_model: str
     moderation_timeout_seconds: float
+    script_analysis_timeout_seconds: float
 
 
 def load_settings() -> Settings:
@@ -175,6 +176,9 @@ def load_settings() -> Settings:
         moderation_model=os.getenv("SRT_MODERATION_MODEL", "").strip(),
         moderation_timeout_seconds=float(
             os.getenv("SRT_MODERATION_TIMEOUT_SECONDS", "30")
+        ),
+        script_analysis_timeout_seconds=float(
+            os.getenv("SRT_SCRIPT_ANALYSIS_TIMEOUT_SECONDS", "150")
         ),
     )
 
