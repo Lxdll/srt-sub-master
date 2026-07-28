@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
+import ipaddress
+import socket
 from typing import Any, AsyncIterator
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
@@ -29,6 +32,45 @@ class LocalDownloadStream:
                 yield chunk
         finally:
             await self.response.aclose()
+
+
+async def _public_https_redirect_allowed(url: str) -> bool:
+    parsed = urlparse(url)
+    try:
+        port = parsed.port or 443
+    except ValueError:
+        return False
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or not 1 <= port <= 65_535
+    ):
+        return False
+    hostname = parsed.hostname.lower().rstrip(".")
+    if hostname == "localhost" or hostname.endswith(".local"):
+        return False
+    try:
+        addresses = [ipaddress.ip_address(hostname)]
+    except ValueError:
+        try:
+            records = await asyncio.to_thread(
+                socket.getaddrinfo,
+                hostname,
+                port,
+                type=socket.SOCK_STREAM,
+            )
+        except OSError:
+            return False
+        addresses = list(
+            {
+                ipaddress.ip_address(record[4][0])
+                for record in records
+                if record[4]
+            }
+        )
+    return bool(addresses) and all(address.is_global for address in addresses)
 
 
 class LocalDouyinService:
@@ -83,10 +125,17 @@ class LocalDouyinService:
         }
         if range_header:
             headers["Range"] = range_header
+        unsafe_redirect = False
+        rejected_status: int | None = None
         for source in quality.source_urls:
             current = source
             for _ in range(4):
-                if not is_media_url_allowed(current):
+                if current == source:
+                    allowed = is_media_url_allowed(current)
+                else:
+                    allowed = await _public_https_redirect_allowed(current)
+                if not allowed:
+                    unsafe_redirect = True
                     break
                 request = self.client.build_request("GET", current, headers=headers)
                 response = await self.client.send(request, stream=True)
@@ -98,12 +147,31 @@ class LocalDouyinService:
                     current = urljoin(current, location)
                     continue
                 if response.status_code in {200, 206}:
-                    return response
+                    content_type = response.headers.get("content-type", "").lower()
+                    if (
+                        content_type.startswith("video/")
+                        or content_type.startswith("application/octet-stream")
+                        or not content_type
+                    ):
+                        return response
+                rejected_status = response.status_code
                 await response.aclose()
                 break
+        if unsafe_redirect:
+            raise DouyinError(
+                "视频源跳转到了不安全的地址，本机已停止下载。",
+                code="UNSAFE_VIDEO_REDIRECT",
+                status_code=502,
+            )
+        if rejected_status in {401, 403, 404, 410}:
+            raise DouyinError(
+                "本机视频源已经失效，请重新解析。",
+                code="VIDEO_SOURCE_EXPIRED",
+                status_code=502,
+            )
         raise DouyinError(
-            "本机视频源已经失效，请重新解析。",
-            code="VIDEO_SOURCE_EXPIRED",
+            "本机暂时无法下载该视频，请稍后重试。",
+            code="VIDEO_SOURCE_FAILED",
             status_code=502,
         )
 

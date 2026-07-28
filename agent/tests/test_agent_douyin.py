@@ -9,8 +9,9 @@ from fastapi.testclient import TestClient
 
 from agent.app import main, remote_douyin
 from agent.app.config import save_state
+from agent.app import douyin as agent_douyin
 from agent.app.douyin import local_douyin_service
-from douyin_engine import ParseResult, Quality
+from douyin_engine import DouyinError, ParseResult, Quality
 
 VIDEO_URL = "https://www.douyin.com/video/7372484719365098803"
 CDN_URL = "https://v5-se.douyinvod.com/video/test.mp4"
@@ -57,6 +58,16 @@ def test_remote_claim_uses_only_server_authorized_media_sources():
                 "expected_size_bytes": 8,
             }
         )
+
+
+@pytest.mark.asyncio
+async def test_public_redirect_allows_https_cdn_custom_port():
+    assert await agent_douyin._public_https_redirect_allowed(
+        "https://8.8.8.8:33443/video.mp4"
+    )
+    assert not await agent_douyin._public_https_redirect_allowed(
+        "https://127.0.0.1:33443/video.mp4"
+    )
 
 
 def test_local_parse_requires_command_and_returns_safe_result(
@@ -124,6 +135,77 @@ def test_local_download_stream(
     assert preview.status_code == 200
     assert preview.content == b"mp4-data"
     assert "content-disposition" not in preview.headers
+
+
+@pytest.mark.asyncio
+async def test_authorized_source_follows_public_cdn_redirect(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    redirected_url = "https://rotating-edge.example.net/final.mp4"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url) == CDN_URL:
+            return httpx.Response(302, headers={"Location": redirected_url})
+        assert str(request.url) == redirected_url
+        return httpx.Response(
+            206,
+            content=b"mp4-data",
+            headers={"Content-Type": "video/mp4"},
+        )
+
+    async def public_redirect(url: str) -> bool:
+        return url == redirected_url
+
+    monkeypatch.setattr(
+        agent_douyin,
+        "_public_https_redirect_allowed",
+        public_redirect,
+    )
+    old_client = local_douyin_service.client
+    local_douyin_service.client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler)
+    )
+    try:
+        response = await local_douyin_service.open_authorized_source(
+            result().qualities[0]
+        )
+        assert await response.aread() == b"mp4-data"
+        await response.aclose()
+    finally:
+        await local_douyin_service.client.aclose()
+        local_douyin_service.client = old_client
+
+
+@pytest.mark.asyncio
+async def test_authorized_source_rejects_private_or_untrusted_redirect(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            302,
+            headers={"Location": "https://127.0.0.1/private.mp4"},
+        )
+
+    async def reject_redirect(_: str) -> bool:
+        return False
+
+    monkeypatch.setattr(
+        agent_douyin,
+        "_public_https_redirect_allowed",
+        reject_redirect,
+    )
+    old_client = local_douyin_service.client
+    local_douyin_service.client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler)
+    )
+    try:
+        with pytest.raises(DouyinError, match="不安全"):
+            await local_douyin_service.open_authorized_source(
+                result().qualities[0]
+            )
+    finally:
+        await local_douyin_service.client.aclose()
+        local_douyin_service.client = old_client
 
 
 @pytest.mark.asyncio
