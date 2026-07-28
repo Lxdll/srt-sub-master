@@ -19,6 +19,15 @@ resources:
       role: ${env('SRT_FC_ROLE_ARN')}
       code: ../
       logConfig: auto
+      asyncInvokeConfig:
+        qualifier: LATEST
+        asyncTask: true
+        maxAsyncEventAgeInSeconds: 86400
+        maxAsyncRetryAttempts: 0
+      concurrencyConfig:
+        reservedConcurrency: 1
+      scalingConfig:
+        minInstances: 0
       environmentVariables:
         SRT_OSS_REGION: ${env('SRT_OSS_REGION')}
         SRT_OSS_INTERNAL_ENDPOINT: ${env('SRT_OSS_INTERNAL_ENDPOINT')}
