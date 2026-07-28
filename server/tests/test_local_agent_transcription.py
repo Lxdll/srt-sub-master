@@ -156,6 +156,7 @@ async def test_local_claim_is_scoped_and_completion_is_idempotent(
     assert claimed.status_code == 200, claimed.text
     assert claimed.json()["source_url"] == VIDEO_URL
     assert claimed.json()["source_urls"] == [CDN_URL]
+    assert claimed.json()["authorized_source_hosts"] == []
     assert claimed.json()["model_id"] == "large-v3-turbo"
     assert claimed.json()["replayed"] is False
 

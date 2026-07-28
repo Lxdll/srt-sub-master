@@ -117,6 +117,7 @@ class LocalDouyinService:
         self,
         quality: Quality,
         range_header: str | None,
+        extra_hosts: set[str] | None = None,
     ) -> httpx.Response:
         headers = {
             "User-Agent": DEFAULT_USER_AGENT,
@@ -131,7 +132,7 @@ class LocalDouyinService:
             current = source
             for _ in range(4):
                 if current == source:
-                    allowed = is_media_url_allowed(current)
+                    allowed = is_media_url_allowed(current, extra_hosts)
                 else:
                     allowed = await _public_https_redirect_allowed(current)
                 if not allowed:
@@ -210,23 +211,30 @@ class LocalDouyinService:
     ) -> httpx.Response:
         return await self._open_source(quality, None)
 
-    async def open_authorized_source(self, quality: Quality) -> httpx.Response:
+    async def open_authorized_source(
+        self,
+        quality: Quality,
+        extra_hosts: set[str] | None = None,
+    ) -> httpx.Response:
         if not quality.source_urls or any(
-            not is_media_url_allowed(source) for source in quality.source_urls
+            not is_media_url_allowed(source, extra_hosts)
+            for source in quality.source_urls
         ):
             raise DouyinError(
                 "服务器授权的视频来源无效。",
                 code="INVALID_AUTHORIZED_SOURCE",
                 status_code=400,
             )
-        return await self._open_source(quality, None)
+        return await self._open_source(quality, None, extra_hosts)
 
     async def open_smallest_authorized_source(
         self,
         quality: Quality,
+        extra_hosts: set[str] | None = None,
     ) -> httpx.Response:
         if not quality.source_urls or any(
-            not is_media_url_allowed(source) for source in quality.source_urls
+            not is_media_url_allowed(source, extra_hosts)
+            for source in quality.source_urls
         ):
             raise DouyinError(
                 "服务器授权的视频来源无效。",
@@ -246,7 +254,11 @@ class LocalDouyinService:
                 source_urls=(source,),
             )
             try:
-                response = await self._open_source(candidate, "bytes=0-0")
+                response = await self._open_source(
+                    candidate,
+                    "bytes=0-0",
+                    extra_hosts,
+                )
             except DouyinError:
                 unmeasured.append(source)
                 continue
@@ -264,7 +276,7 @@ class LocalDouyinService:
             source for _, source in sorted(measured, key=lambda item: item[0])
         ] + unmeasured
         if not ordered_sources:
-            return await self._open_source(quality, None)
+            return await self._open_source(quality, None, extra_hosts)
         selected = Quality(
             id=quality.id,
             label=quality.label,
@@ -278,7 +290,7 @@ class LocalDouyinService:
             ),
             source_urls=tuple(ordered_sources),
         )
-        return await self._open_source(selected, None)
+        return await self._open_source(selected, None, extra_hosts)
 
 
 local_douyin_service = LocalDouyinService()

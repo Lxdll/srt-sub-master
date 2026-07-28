@@ -54,12 +54,14 @@ def _authorized_quality(claim: dict[str, Any]) -> Quality | None:
     raw_sources = claim.get("source_urls")
     if raw_sources is None or raw_sources == []:
         return None
+    authorized_hosts = _authorized_source_hosts(claim)
     if (
         not isinstance(raw_sources, list)
         or not raw_sources
         or len(raw_sources) > 8
         or any(
-            not isinstance(source, str) or not is_media_url_allowed(source)
+            not isinstance(source, str)
+            or not is_media_url_allowed(source, authorized_hosts)
             for source in raw_sources
         )
     ):
@@ -73,6 +75,24 @@ def _authorized_quality(claim: dict[str, Any]) -> Quality | None:
         estimated_bytes=int(claim.get("expected_size_bytes") or 0) or None,
         source_urls=tuple(raw_sources),
     )
+
+
+def _authorized_source_hosts(claim: dict[str, Any]) -> set[str]:
+    raw_hosts = claim.get("authorized_source_hosts") or []
+    if (
+        not isinstance(raw_hosts, list)
+        or len(raw_hosts) > 4
+        or any(
+            not isinstance(host, str)
+            or not host
+            or host != host.lower().rstrip(".")
+            or "/" in host
+            or ":" in host
+            for host in raw_hosts
+        )
+    ):
+        raise RuntimeError("服务器授权的视频来源域名无效。")
+    return set(raw_hosts)
 
 
 def _clear_failed_attempt(task_id: str) -> None:
@@ -142,7 +162,10 @@ async def start_remote_douyin_job(task_id: str, claim_token: str) -> None:
         temporary = directory / "source.downloading"
         digest = hashlib.sha256()
         received = 0
-        upstream = await local_douyin_service.open_smallest_authorized_source(quality)
+        upstream = await local_douyin_service.open_smallest_authorized_source(
+            quality,
+            _authorized_source_hosts(claim),
+        )
         total = int(upstream.headers.get("content-length") or 0)
         if total > max_bytes:
             await upstream.aclose()

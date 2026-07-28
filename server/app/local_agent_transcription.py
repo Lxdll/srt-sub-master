@@ -22,6 +22,13 @@ from .transcription import (
 LOCAL_MODEL_IDS = frozenset({"small", "large-v3", "large-v3-turbo"})
 
 
+def _source_allowed(source: str) -> bool:
+    return is_media_url_allowed(
+        source,
+        {douyin_service.bhwa.allowed_host},
+    )
+
+
 def installed_model_ids(device: dict[str, Any]) -> set[str]:
     try:
         models = json.loads(device["models_json"])
@@ -91,7 +98,7 @@ def _authorized_quality(result: ParseResult) -> tuple[Quality, list[str]]:
     quality = choose_transcription_quality(result)
     source_urls = _compact_transcription_sources(quality)
     if not source_urls or any(
-        not is_media_url_allowed(source) for source in source_urls
+        not _source_allowed(source) for source in source_urls
     ):
         raise TranscriptionError(
             "解析服务没有返回可供本机安全下载的视频来源，请稍后重试。",
@@ -278,7 +285,7 @@ def claim_local_douyin_task(
         except (TypeError, json.JSONDecodeError):
             source_urls = []
         if not isinstance(source_urls, list) or any(
-            not isinstance(source, str) or not is_media_url_allowed(source)
+            not isinstance(source, str) or not _source_allowed(source)
             for source in source_urls
         ):
             raise TranscriptionError(
@@ -289,6 +296,14 @@ def claim_local_douyin_task(
             "task_id": task_id,
             "source_url": row["source_url"],
             "source_urls": source_urls,
+            "authorized_source_hosts": sorted(
+                {
+                    urlparse(source).hostname
+                    for source in source_urls
+                    if urlparse(source).hostname
+                    == douyin_service.bhwa.allowed_host
+                }
+            ),
             "aweme_id": row["aweme_id"],
             "original_name": row["original_name"],
             "model_id": row["model_id"],

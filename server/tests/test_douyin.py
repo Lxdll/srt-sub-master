@@ -147,6 +147,33 @@ async def test_fallback_prefers_direct_douyin_media_source():
 
 
 @pytest.mark.asyncio
+async def test_fallback_uses_its_https_proxy_when_direct_source_is_unsafe():
+    proxy_url = (
+        "https://downloader-api.bhwa233.com/api/download"
+        "?url=authorized-test"
+    )
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "awemeId": "7372484719365098803",
+                    "title": "测试视频",
+                    "noteType": "video",
+                    "originDownloadVideoUrl": "http://127.0.0.1/private.mp4",
+                    "videoDownloadUrl": proxy_url,
+                },
+            },
+        )
+
+    provider = BhwaProvider(transport=httpx.MockTransport(handler))
+    result = await provider.parse(VIDEO_URL, "7372484719365098803")
+    assert result.qualities[0].source_urls == (proxy_url,)
+
+
+@pytest.mark.asyncio
 async def test_engine_falls_back_without_repeating_risk_error():
     class Failing:
         name = "primary"

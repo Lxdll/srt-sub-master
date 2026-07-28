@@ -61,6 +61,17 @@ def test_remote_claim_uses_only_server_authorized_media_sources():
             }
         )
 
+    proxy_url = "https://downloader-api.bhwa233.com/api/download?video=1"
+    proxy_quality = remote_douyin._authorized_quality(
+        {
+            "source_urls": [proxy_url],
+            "authorized_source_hosts": ["downloader-api.bhwa233.com"],
+            "expected_size_bytes": 0,
+        }
+    )
+    assert proxy_quality is not None
+    assert proxy_quality.source_urls == (proxy_url,)
+
 
 def test_agent_reports_download_metrics(monkeypatch: pytest.MonkeyPatch):
     initialize_database()

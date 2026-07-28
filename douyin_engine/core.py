@@ -538,14 +538,21 @@ class BhwaProvider:
                 code="GALLERY_UNSUPPORTED",
                 status_code=422,
             )
-        source = (
-            payload.get("originDownloadVideoUrl")
-            or payload.get("downloadVideoUrl")
-            or payload.get("downloadUrl")
+        source = next(
+            (
+                candidate
+                for candidate in (
+                    payload.get("originDownloadVideoUrl"),
+                    payload.get("downloadVideoUrl"),
+                    payload.get("videoDownloadUrl"),
+                    payload.get("downloadUrl"),
+                )
+                if isinstance(candidate, str)
+                and is_media_url_allowed(candidate, {self.allowed_host})
+            ),
+            None,
         )
-        if not isinstance(source, str) or not is_media_url_allowed(
-            source, {self.allowed_host}
-        ):
+        if source is None:
             raise DouyinError(
                 "备用解析服务没有返回安全的视频地址。",
                 code="FALLBACK_NO_SOURCE",
