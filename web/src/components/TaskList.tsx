@@ -55,7 +55,11 @@ export function TaskList({ tasks, onChanged }: TaskListProps) {
   return (
     <div className="task-list">
       {tasks.map((task) => {
-        const [label, Icon] = statusMap[task.status];
+        const [defaultLabel, Icon] = statusMap[task.status];
+        const label =
+          task.status === "queued" && task.backend === "local_agent"
+            ? "等待本机 Agent"
+            : defaultLabel;
         return (
           <article className="task-row" key={task.id}>
             <div className="task-file-icon">
@@ -69,6 +73,7 @@ export function TaskList({ tasks, onChanged }: TaskListProps) {
                 {" · "}
                 {new Date(task.created_at).toLocaleString("zh-CN")}
               </span>
+              {task.error && <span className="task-error">{task.error}</span>}
             </div>
             <div className={`task-status ${task.status}`}>
               <Icon size={15} className={task.status === "transcribing" ? "spin" : ""} />
@@ -82,7 +87,9 @@ export function TaskList({ tasks, onChanged }: TaskListProps) {
                 ? "SRT"
                 : task.model_id === "whisper-small-q5_1"
                   ? "服务器 Small Q5"
-                  : task.model_id}
+                  : task.backend === "local_agent"
+                    ? `本机 ${task.model_id}`
+                    : task.model_id}
             </span>
             <div className="task-menu">
               {task.status === "failed" && (

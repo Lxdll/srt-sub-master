@@ -90,6 +90,10 @@ class VerifyCommandRequest(BaseModel):
     task_id: str | None = None
 
 
+class ClaimLocalDouyinTaskRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=512)
+
+
 class AttachAssetRequest(BaseModel):
     local_asset_id: str
     sha256: str
@@ -103,6 +107,9 @@ class DouyinParseRequest(BaseModel):
 
 class DouyinTranscriptionRequest(BaseModel):
     text: str = Field(min_length=1, max_length=4_000)
+    backend: Literal["server", "local_agent"] = "server"
+    device_id: str | None = None
+    model_id: Literal["small", "large-v3", "large-v3-turbo"] | None = None
 
 
 class DouyinTranscriptionResponse(BaseModel):

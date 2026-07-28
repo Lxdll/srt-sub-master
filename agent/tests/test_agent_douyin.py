@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 # Agent-side contract tests use a distinct module name from server tests.
-
 import asyncio
-import httpx
-from fastapi.testclient import TestClient
-import pytest
 
-from agent.app import main
+import httpx
+import pytest
+from fastapi.testclient import TestClient
+
+from agent.app import main, remote_douyin
+from agent.app.config import save_state
 from agent.app.douyin import local_douyin_service
 from douyin_engine import ParseResult, Quality
-
 
 VIDEO_URL = "https://www.douyin.com/video/7372484719365098803"
 CDN_URL = "https://v5-se.douyinvod.com/video/test.mp4"
@@ -104,3 +104,55 @@ def test_local_download_stream(
     assert preview.status_code == 200
     assert preview.content == b"mp4-data"
     assert "content-disposition" not in preview.headers
+
+
+@pytest.mark.asyncio
+async def test_remote_douyin_job_reports_missing_model(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    save_state(
+        {
+            "server_url": "https://subtitles.test",
+            "device_token": "device-token",
+            "device_id": "device-1",
+        }
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/claim-douyin")
+        assert request.headers["authorization"] == "Bearer device-token"
+        return httpx.Response(
+            200,
+            json={
+                "task_id": "task-1",
+                "source_url": VIDEO_URL,
+                "aweme_id": "7372484719365098803",
+                "original_name": "video.mp4",
+                "model_id": "large-v3",
+                "expected_size_bytes": 8,
+                "expected_duration_ms": 1000,
+                "max_source_bytes": 1024,
+                "max_duration_ms": 30_000,
+                "replayed": False,
+            },
+        )
+
+    async_client_class = httpx.AsyncClient
+    monkeypatch.setattr(
+        remote_douyin.httpx,
+        "AsyncClient",
+        lambda **kwargs: async_client_class(
+            transport=httpx.MockTransport(handler),
+            base_url=kwargs.get("base_url"),
+            headers=kwargs.get("headers"),
+        ),
+    )
+    monkeypatch.setattr(remote_douyin, "model_path", lambda _model_id: None)
+    failures: list[str] = []
+
+    async def report(_task_id: str, message: str) -> None:
+        failures.append(message)
+
+    monkeypatch.setattr(remote_douyin, "_report_failure", report)
+    await remote_douyin.start_remote_douyin_job("task-1", "claim-token-value")
+    assert failures == ["本机缺少所选模型，请先下载模型后再重试。"]

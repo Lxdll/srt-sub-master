@@ -187,11 +187,18 @@ export const api = {
     });
   },
 
-  createDouyinTranscription(text: string) {
+  createDouyinTranscription(
+    text: string,
+    options: {
+      backend: "server" | "local_agent";
+      device_id?: string;
+      model_id?: string;
+    } = { backend: "server" },
+  ) {
     return request<{ task_id: string }>("/api/douyin/transcriptions", {
       method: "POST",
       csrf: true,
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, ...options }),
     });
   },
 

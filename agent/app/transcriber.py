@@ -150,9 +150,14 @@ def run_job(task_id: str) -> None:
         ).fetchone()
     if not row:
         return
-    _progress(task_id, "transcribing", 5)
+    start_progress = max(5.0, float(row["progress"]))
+    _progress(task_id, "transcribing", start_progress)
     try:
-        callback = lambda value: _progress(task_id, "transcribing", round(value, 1))
+        callback = lambda value: _progress(
+            task_id,
+            "transcribing",
+            max(start_progress, round(value, 1)),
+        )
         if platform.system() == "Darwin":
             segments = _transcribe_mlx(
                 Path(row["path"]), row["model_id"], row["duration_ms"], callback
@@ -185,4 +190,3 @@ def run_job(task_id: str) -> None:
 def queue_job(task_id: str) -> None:
     with job_lock:
         job_executor.submit(run_job, task_id)
-

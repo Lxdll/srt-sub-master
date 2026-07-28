@@ -135,5 +135,12 @@ class LocalDouyinService:
             ),
         )
 
+    async def open_result_source(
+        self,
+        result: ParseResult,
+        quality: Quality,
+    ) -> httpx.Response:
+        return await self._open_source(quality, None)
+
 
 local_douyin_service = LocalDouyinService()

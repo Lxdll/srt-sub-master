@@ -24,12 +24,22 @@ from .douyin import local_douyin_service
 from douyin_engine import DouyinError, content_disposition
 from .media import MediaError, probe_video
 from .models import catalog, model_path, start_download
+from .remote_douyin import start_remote_douyin_job
 from .system_info import hardware_info
 from .transcriber import _progress, queue_job
 
 
 def _id() -> str:
     return str(uuid4())
+
+
+background_tasks: set[asyncio.Task[Any]] = set()
+
+
+def _spawn_background(coroutine: Any) -> None:
+    task = asyncio.create_task(coroutine)
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
 
 
 def _origin_allowed(origin: str | None, path: str) -> bool:
@@ -99,6 +109,17 @@ async def _handle_command(command: dict[str, Any]) -> None:
     payload = command.get("payload") or {}
     if name == "retry" and payload.get("task_id"):
         queue_job(payload["task_id"])
+    if (
+        name == "start_douyin_transcription"
+        and payload.get("task_id")
+        and payload.get("claim_token")
+    ):
+        _spawn_background(
+            start_remote_douyin_job(
+                str(payload["task_id"]),
+                str(payload["claim_token"]),
+            )
+        )
     if name == "delete_asset" and payload.get("local_asset_id"):
         delete_local_asset(payload["local_asset_id"])
 

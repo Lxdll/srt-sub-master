@@ -71,6 +71,7 @@ export interface LocalSystem {
 export interface Task {
   id: string;
   device_id: string | null;
+  backend: "local_agent" | "server_local" | "fc" | "imported";
   original_name: string;
   size_bytes: number;
   duration_ms: number | null;
