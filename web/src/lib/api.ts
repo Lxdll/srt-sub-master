@@ -14,6 +14,14 @@ type ApiSchemas = components["schemas"];
 
 let csrfToken = "";
 
+type ScriptAnalysisPayload = {
+  text: string;
+  platform?: string;
+  audience?: string;
+  target_duration_seconds?: number;
+  goal?: string;
+};
+
 export function setCsrfToken(token: string) {
   csrfToken = token;
 }
@@ -181,13 +189,7 @@ export const api = {
   },
 
   analyzeScript(
-    payload: {
-      text: string;
-      platform?: string;
-      audience?: string;
-      target_duration_seconds?: number;
-      goal?: string;
-    },
+    payload: ScriptAnalysisPayload,
     signal?: AbortSignal,
   ) {
     return request<ScriptAnalysisResult>("/api/script-analysis/analyze", {
@@ -196,6 +198,121 @@ export const api = {
       signal,
       body: JSON.stringify(payload),
     });
+  },
+
+  async analyzeScriptStream(
+    payload: ScriptAnalysisPayload,
+    onProgress: (result: ScriptAnalysisResult) => void,
+    signal?: AbortSignal,
+  ): Promise<ScriptAnalysisResult> {
+    const response = await fetch("/api/script-analysis/analyze/stream", {
+      method: "POST",
+      credentials: "include",
+      signal,
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.detail || `请求失败（${response.status}）`);
+    }
+    if (!response.body) {
+      throw new Error("浏览器无法读取脚本拆解的流式响应");
+    }
+
+    let result: ScriptAnalysisResult = {
+      highlights: [],
+      hooks: [],
+      suggestions: [],
+    };
+    let buffer = "";
+    let completed = false;
+    const decoder = new TextDecoder();
+    const reader = response.body.getReader();
+
+    const publish = () => {
+      onProgress({
+        highlights: [...result.highlights],
+        hooks: [...result.hooks],
+        suggestions: [...result.suggestions],
+      });
+    };
+
+    const consumeEvent = (block: string) => {
+      let eventName = "";
+      const dataLines: string[] = [];
+      for (const line of block.split(/\r?\n/)) {
+        if (line.startsWith("event:")) {
+          eventName = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+          dataLines.push(line.slice(5).trimStart());
+        }
+      }
+      if (!eventName || !dataLines.length) return;
+
+      let data: unknown;
+      try {
+        data = JSON.parse(dataLines.join("\n"));
+      } catch {
+        throw new Error("脚本拆解的流式响应格式无效");
+      }
+
+      if (eventName === "highlight") {
+        result.highlights.push(
+          data as ScriptAnalysisResult["highlights"][number],
+        );
+        publish();
+      } else if (eventName === "hook") {
+        result.hooks.push(data as ScriptAnalysisResult["hooks"][number]);
+        publish();
+      } else if (eventName === "suggestion") {
+        result.suggestions.push(
+          data as ScriptAnalysisResult["suggestions"][number],
+        );
+        publish();
+      } else if (eventName === "result") {
+        result = data as ScriptAnalysisResult;
+        publish();
+      } else if (eventName === "done") {
+        completed = true;
+      } else if (eventName === "error") {
+        const detail =
+          typeof data === "object" &&
+          data !== null &&
+          "detail" in data &&
+          typeof data.detail === "string"
+            ? data.detail
+            : "脚本分析失败，请稍后重试。";
+        throw new Error(detail);
+      }
+    };
+
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        buffer += decoder.decode(value, { stream: !done });
+
+        let boundary = buffer.match(/\r?\n\r?\n/);
+        while (boundary?.index !== undefined) {
+          const block = buffer.slice(0, boundary.index);
+          buffer = buffer.slice(boundary.index + boundary[0].length);
+          consumeEvent(block);
+          boundary = buffer.match(/\r?\n\r?\n/);
+        }
+        if (done) break;
+      }
+      if (buffer.trim()) consumeEvent(buffer);
+    } finally {
+      reader.releaseLock();
+    }
+
+    if (!completed) {
+      throw new Error("脚本拆解连接意外中断，请重试。");
+    }
+    return result;
   },
 
   parseDouyin(text: string) {

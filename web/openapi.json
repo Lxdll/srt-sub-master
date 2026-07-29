@@ -600,6 +600,60 @@
         }
       }
     },
+    "/api/script-analysis/analyze/stream": {
+      "post": {
+        "summary": "Stream Script Analysis",
+        "operationId": "stream_script_analysis_api_script_analysis_analyze_stream_post",
+        "parameters": [
+          {
+            "name": "srt_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Srt Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScriptAnalysisRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/login": {
       "post": {
         "summary": "Login",
@@ -2866,72 +2920,6 @@
         ],
         "title": "ProhibitedWordsCheckResponse"
       },
-      "ScriptAnalysisBreakdownItem": {
-        "properties": {
-          "section": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Section"
-          },
-          "label": {
-            "type": "string",
-            "title": "Label"
-          },
-          "excerpt": {
-            "type": "string",
-            "title": "Excerpt"
-          },
-          "purpose": {
-            "type": "string",
-            "title": "Purpose"
-          },
-          "visuals": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Visuals"
-          },
-          "assets": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Assets"
-          },
-          "on_screen_text": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "On Screen Text"
-          },
-          "audio": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Audio"
-          },
-          "production_notes": {
-            "type": "string",
-            "title": "Production Notes"
-          }
-        },
-        "type": "object",
-        "required": [
-          "section",
-          "label",
-          "excerpt",
-          "purpose",
-          "visuals",
-          "assets",
-          "on_screen_text",
-          "audio",
-          "production_notes"
-        ],
-        "title": "ScriptAnalysisBreakdownItem"
-      },
       "ScriptAnalysisHighlight": {
         "properties": {
           "excerpt": {
@@ -2998,44 +2986,6 @@
         ],
         "title": "ScriptAnalysisHook"
       },
-      "ScriptAnalysisOverview": {
-        "properties": {
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "synopsis": {
-            "type": "string",
-            "title": "Synopsis"
-          },
-          "core_message": {
-            "type": "string",
-            "title": "Core Message"
-          },
-          "target_audience": {
-            "type": "string",
-            "title": "Target Audience"
-          },
-          "tone": {
-            "type": "string",
-            "title": "Tone"
-          },
-          "estimated_duration": {
-            "type": "string",
-            "title": "Estimated Duration"
-          }
-        },
-        "type": "object",
-        "required": [
-          "title",
-          "synopsis",
-          "core_message",
-          "target_audience",
-          "tone",
-          "estimated_duration"
-        ],
-        "title": "ScriptAnalysisOverview"
-      },
       "ScriptAnalysisRequest": {
         "properties": {
           "text": {
@@ -3100,73 +3050,8 @@
         ],
         "title": "ScriptAnalysisRequest"
       },
-      "ScriptAnalysisRequirementGroup": {
-        "properties": {
-          "category": {
-            "type": "string",
-            "title": "Category"
-          },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ScriptAnalysisRequirementItem"
-            },
-            "type": "array",
-            "title": "Items"
-          }
-        },
-        "type": "object",
-        "required": [
-          "category",
-          "items"
-        ],
-        "title": "ScriptAnalysisRequirementGroup"
-      },
-      "ScriptAnalysisRequirementItem": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "purpose": {
-            "type": "string",
-            "title": "Purpose"
-          },
-          "priority": {
-            "type": "string",
-            "enum": [
-              "必需",
-              "建议"
-            ],
-            "title": "Priority"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "purpose",
-          "priority"
-        ],
-        "title": "ScriptAnalysisRequirementItem"
-      },
       "ScriptAnalysisResponse": {
         "properties": {
-          "overview": {
-            "$ref": "#/components/schemas/ScriptAnalysisOverview"
-          },
-          "breakdown": {
-            "items": {
-              "$ref": "#/components/schemas/ScriptAnalysisBreakdownItem"
-            },
-            "type": "array",
-            "title": "Breakdown"
-          },
-          "requirements": {
-            "items": {
-              "$ref": "#/components/schemas/ScriptAnalysisRequirementGroup"
-            },
-            "type": "array",
-            "title": "Requirements"
-          },
           "highlights": {
             "items": {
               "$ref": "#/components/schemas/ScriptAnalysisHighlight"
@@ -3191,9 +3076,6 @@
         },
         "type": "object",
         "required": [
-          "overview",
-          "breakdown",
-          "requirements",
           "highlights",
           "hooks",
           "suggestions"

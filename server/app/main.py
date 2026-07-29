@@ -522,6 +522,57 @@ async def analyze_script(
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 
+@app.post("/api/script-analysis/analyze/stream")
+async def stream_script_analysis(
+    payload: ScriptAnalysisRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(current_user),
+) -> StreamingResponse:
+    require_csrf(request, user)
+    ensure_permission(user, "script_analysis")
+    script = payload.text.strip()
+    if not script:
+        raise HTTPException(status_code=422, detail="视频脚本不能为空")
+    context = {
+        key: value
+        for key, value in {
+            "platform": payload.platform.strip() if payload.platform else None,
+            "audience": payload.audience.strip() if payload.audience else None,
+            "target_duration_seconds": payload.target_duration_seconds,
+            "goal": payload.goal.strip() if payload.goal else None,
+        }.items()
+        if value not in (None, "")
+    }
+
+    async def events() -> Any:
+        try:
+            async for event, data in script_analysis_service.analyze_stream(
+                script, context
+            ):
+                encoded = json.dumps(
+                    data,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                yield f"event: {event}\ndata: {encoded}\n\n"
+        except ScriptAnalysisError as exc:
+            encoded = json.dumps(
+                {"status_code": exc.status_code, "detail": str(exc)},
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            yield f"event: error\ndata: {encoded}\n\n"
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @app.post("/api/auth/login")
 def login(payload: LoginRequest, response: Response) -> dict[str, Any]:
     with db_session() as db:
