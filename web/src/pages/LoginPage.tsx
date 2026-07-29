@@ -3,7 +3,6 @@ import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { defaultPath } from "../lib/permissions";
 import { ThemeToggle } from "../components/ThemeToggle";
 
 export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
@@ -14,7 +13,7 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  if (user) return <Navigate to={adminMode ? "/" : defaultPath(user)} replace />;
+  if (user) return <Navigate to="/" replace />;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -23,7 +22,7 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
     try {
       const result = await api.login(username, password);
       setAuth(result);
-      navigate(adminMode ? "/" : defaultPath(result.user));
+      navigate("/");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "登录失败");
     } finally {

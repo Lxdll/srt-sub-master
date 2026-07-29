@@ -1,7 +1,7 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import type { PropsWithChildren } from "react";
 import { useAuth } from "../lib/auth";
-import { defaultPath, hasPermission } from "../lib/permissions";
+import { hasPermission } from "../lib/permissions";
 import type { PermissionKey } from "../types";
 
 export function ProtectedRoute({ children }: PropsWithChildren) {
@@ -22,6 +22,7 @@ export function FeatureRoute({
   permission,
 }: PropsWithChildren<{ permission: PermissionKey }>) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) {
     return (
       <div className="page-loader">
@@ -34,7 +35,11 @@ export function FeatureRoute({
   return hasPermission(user, permission) ? (
     children
   ) : (
-    <Navigate to={defaultPath(user)} replace />
+    <Navigate
+      to="/tools"
+      replace
+      state={{ accessDenied: true, from: location.pathname }}
+    />
   );
 }
 
@@ -43,6 +48,7 @@ export function MultiFeatureRoute({
   permissions,
 }: PropsWithChildren<{ permissions: PermissionKey[] }>) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) {
     return (
       <div className="page-loader">
@@ -55,6 +61,10 @@ export function MultiFeatureRoute({
   return permissions.every((permission) => hasPermission(user, permission)) ? (
     children
   ) : (
-    <Navigate to={defaultPath(user)} replace />
+    <Navigate
+      to="/tools"
+      replace
+      state={{ accessDenied: true, from: location.pathname }}
+    />
   );
 }

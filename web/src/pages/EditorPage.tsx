@@ -162,7 +162,7 @@ export function EditorPage() {
       <div className="editor-page">
         <div className="editor-topbar">
           <Link to="/subtitle" className="back-link">
-            <ArrowLeft size={17} /> 返回工作台
+            <ArrowLeft size={17} /> 返回字幕任务
           </Link>
           <div className="editor-title">
             <strong>{task.data.original_name}</strong>

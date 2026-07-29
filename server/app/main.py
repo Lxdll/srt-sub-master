@@ -33,6 +33,7 @@ from .config import settings
 from .db import db_session, initialize_database, utc_now
 from .douyin import douyin_service
 from douyin_engine import DouyinError, content_disposition
+from .hot_ranks import hot_rank_service
 from .prohibited_words import ProhibitedWordsError, prohibited_word_service
 from .schemas import (
     AdminResetPasswordRequest,
@@ -48,6 +49,7 @@ from .schemas import (
     DouyinTranscriptionRequest,
     DouyinTranscriptionResponse,
     EditSegmentRequest,
+    HotRanksResponse,
     LoginRequest,
     PairDeviceRequest,
     ProhibitedWordsCheckRequest,
@@ -125,9 +127,11 @@ def _bootstrap_admin() -> None:
 async def lifespan(_: FastAPI):
     initialize_database()
     _bootstrap_admin()
+    hot_rank_service.start()
     try:
         yield
     finally:
+        await hot_rank_service.close()
         await douyin_service.close()
 
 
@@ -233,6 +237,21 @@ def _public_user(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/hot-ranks", response_model=HotRanksResponse)
+async def hot_ranks(
+    response: Response,
+    refresh: bool = False,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    result = await hot_rank_service.get_hot_ranks(refresh=refresh)
+    if all(
+        platform["status"] == "unavailable"
+        for platform in result["platforms"]
+    ):
+        response.status_code = 503
+    return result
 
 
 def _douyin_http_error(exc: DouyinError) -> HTTPException:

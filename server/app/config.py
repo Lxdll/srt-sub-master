@@ -59,6 +59,12 @@ class Settings:
     moderation_model: str
     moderation_timeout_seconds: float
     script_analysis_timeout_seconds: float
+    hot_rank_primary_base: str
+    hot_rank_fallback_base: str
+    hot_rank_fallback_api_key: str
+    hot_rank_timeout_seconds: float
+    hot_rank_refresh_seconds: int
+    hot_rank_stale_seconds: int
 
 
 def load_settings() -> Settings:
@@ -179,6 +185,24 @@ def load_settings() -> Settings:
         ),
         script_analysis_timeout_seconds=float(
             os.getenv("SRT_SCRIPT_ANALYSIS_TIMEOUT_SECONDS", "150")
+        ),
+        hot_rank_primary_base=os.getenv(
+            "SRT_HOT_RANK_PRIMARY_BASE", "http://hot-api:4399"
+        ).strip().rstrip("/"),
+        hot_rank_fallback_base=os.getenv(
+            "SRT_HOT_RANK_FALLBACK_BASE", "https://uapis.cn"
+        ).strip().rstrip("/"),
+        hot_rank_fallback_api_key=os.getenv(
+            "SRT_HOT_RANK_FALLBACK_API_KEY", ""
+        ).strip(),
+        hot_rank_timeout_seconds=max(
+            0.1, float(os.getenv("SRT_HOT_RANK_TIMEOUT_SECONDS", "5"))
+        ),
+        hot_rank_refresh_seconds=max(
+            1, int(os.getenv("SRT_HOT_RANK_REFRESH_SECONDS", "900"))
+        ),
+        hot_rank_stale_seconds=max(
+            1, int(os.getenv("SRT_HOT_RANK_STALE_SECONDS", "86400"))
         ),
     )
 

@@ -7,6 +7,7 @@ import type {
   TaskDetail,
   User,
   ScriptAnalysisResult,
+  HotRanksResponse,
 } from "../types";
 import type { components } from "../generated/api";
 
@@ -124,6 +125,11 @@ export const api = {
         new_password: newPassword,
       }),
     });
+  },
+
+  hotRanks(refresh = false) {
+    const query = refresh ? "?refresh=true" : "";
+    return request<HotRanksResponse>(`/api/hot-ranks${query}`);
   },
 
   pairCode() {

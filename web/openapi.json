@@ -27,6 +27,62 @@
         }
       }
     },
+    "/api/hot-ranks": {
+      "get": {
+        "summary": "Hot Ranks",
+        "operationId": "hot_ranks_api_hot_ranks_get",
+        "parameters": [
+          {
+            "name": "refresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Refresh"
+            }
+          },
+          {
+            "name": "srt_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Srt Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HotRanksResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/douyin/parse": {
       "post": {
         "summary": "Parse Douyin",
@@ -2746,6 +2802,143 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HotRankItemResponse": {
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Rank"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "hot_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hot Value"
+          },
+          "badge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Badge"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank",
+          "title",
+          "url"
+        ],
+        "title": "HotRankItemResponse"
+      },
+      "HotRankPlatformResponse": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "rednote",
+              "douyin",
+              "bilibili"
+            ],
+            "title": "Platform"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "stale",
+              "unavailable"
+            ],
+            "title": "Status"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "60s",
+                  "uapi"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HotRankItemResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "display_name",
+          "status",
+          "source",
+          "updated_at",
+          "items"
+        ],
+        "title": "HotRankPlatformResponse"
+      },
+      "HotRanksResponse": {
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "title": "Generated At"
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/components/schemas/HotRankPlatformResponse"
+            },
+            "type": "array",
+            "title": "Platforms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_at",
+          "platforms"
+        ],
+        "title": "HotRanksResponse"
       },
       "LoginRequest": {
         "properties": {

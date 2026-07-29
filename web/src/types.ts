@@ -25,6 +25,32 @@ export interface AuthResponse {
   csrf_token: string;
 }
 
+export type HotRankPlatformKey = "rednote" | "douyin" | "bilibili";
+export type HotRankStatus = "fresh" | "stale" | "unavailable";
+export type HotRankSource = "60s" | "uapi" | null;
+
+export interface HotRankItem {
+  rank: number;
+  title: string;
+  url: string;
+  hot_value?: string | null;
+  badge?: string | null;
+}
+
+export interface HotRankPlatform {
+  platform: HotRankPlatformKey;
+  display_name: string;
+  status: HotRankStatus;
+  source: HotRankSource;
+  updated_at: string | null;
+  items: HotRankItem[];
+}
+
+export interface HotRanksResponse {
+  generated_at: string;
+  platforms: HotRankPlatform[];
+}
+
 export interface Device {
   id: string;
   name: string;

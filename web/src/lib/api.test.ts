@@ -101,3 +101,31 @@ describe("script analysis streaming API", () => {
     ).rejects.toThrow("模型输出无法解析");
   });
 });
+
+describe("hot ranks API", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("requests a forced refresh when the user refreshes the board", async () => {
+    const response = {
+      generated_at: "2026-07-29T08:30:00Z",
+      platforms: [],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(response), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    await expect(api.hotRanks(true)).resolves.toEqual(response);
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/hot-ranks?refresh=true",
+      expect.objectContaining({ credentials: "include" }),
+    );
+  });
+});

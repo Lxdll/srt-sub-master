@@ -49,12 +49,19 @@ services:
       SRT_MODERATION_MODEL: ${SRT_MODERATION_MODEL:-}
       SRT_MODERATION_TIMEOUT_SECONDS: ${SRT_MODERATION_TIMEOUT_SECONDS:-30}
       SRT_SCRIPT_ANALYSIS_TIMEOUT_SECONDS: ${SRT_SCRIPT_ANALYSIS_TIMEOUT_SECONDS:-150}
+      SRT_HOT_RANK_PRIMARY_BASE: ${SRT_HOT_RANK_PRIMARY_BASE:-http://hot-api:4399}
+      SRT_HOT_RANK_FALLBACK_BASE: ${SRT_HOT_RANK_FALLBACK_BASE:-https://uapis.cn}
+      SRT_HOT_RANK_FALLBACK_API_KEY: ${SRT_HOT_RANK_FALLBACK_API_KEY:-}
+      SRT_HOT_RANK_TIMEOUT_SECONDS: ${SRT_HOT_RANK_TIMEOUT_SECONDS:-5}
+      SRT_HOT_RANK_REFRESH_SECONDS: ${SRT_HOT_RANK_REFRESH_SECONDS:-900}
+      SRT_HOT_RANK_STALE_SECONDS: ${SRT_HOT_RANK_STALE_SECONDS:-86400}
     volumes:
       - srt_data:/data
     expose:
       - "8000"
     networks:
       - edge
+      - hot-rank
     healthcheck:
       test:
         [
@@ -67,6 +74,27 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+
+  hot-api:
+    container_name: chenjianru-hot-api
+    image: vikiboss/60s:2.53.3@sha256:5afbf32a848cf7a6285f4cf6c320f214ce3d948fef8ff8762f86b86e8d6766b2
+    restart: unless-stopped
+    expose:
+      - "4399"
+    networks:
+      - hot-rank
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4399/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   transcription-worker:
     container_name: chenjianru-transcription-worker
@@ -106,6 +134,8 @@ networks:
   edge:
     external: true
     name: ${PROXY_NETWORK:-luxudong_edge}
+  hot-rank:
+    driver: bridge
 
 volumes:
   srt_data:

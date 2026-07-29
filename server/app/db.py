@@ -171,6 +171,13 @@ CREATE TABLE IF NOT EXISTS user_prohibited_words (
 
 CREATE INDEX IF NOT EXISTS idx_user_prohibited_words_created
 ON user_prohibited_words(user_id, created_at);
+
+CREATE TABLE IF NOT EXISTS hot_rank_snapshots (
+    platform TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    items_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
 
 

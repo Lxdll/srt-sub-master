@@ -1,26 +1,31 @@
 import {
   CheckCircle2,
-  Captions,
-  Download,
-  AudioLines,
-  Clapperboard,
+  ChevronDown,
   Eye,
   EyeOff,
+  House,
   KeyRound,
+  LayoutGrid,
   LogOut,
-  ShieldAlert,
+  UserRound,
   X,
 } from "lucide-react";
-import { useState, type FormEvent, type PropsWithChildren } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type PropsWithChildren,
+} from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
-import { defaultPath, hasPermission } from "../lib/permissions";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function AppShell({ children }: PropsWithChildren) {
   const { user, setAuth } = useAuth();
   const navigate = useNavigate();
+  const accountMenuRef = useRef<HTMLDetailsElement>(null);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -31,6 +36,31 @@ export function AppShell({ children }: PropsWithChildren) {
     kind: "success" | "error";
     text: string;
   } | null>(null);
+
+  useEffect(() => {
+    function closeAccountMenu(event: PointerEvent) {
+      if (
+        accountMenuRef.current?.open &&
+        !accountMenuRef.current.contains(event.target as Node)
+      ) {
+        accountMenuRef.current.removeAttribute("open");
+      }
+    }
+
+    function closeAccountMenuWithKeyboard(event: KeyboardEvent) {
+      if (event.key === "Escape" && accountMenuRef.current?.open) {
+        accountMenuRef.current.removeAttribute("open");
+        accountMenuRef.current.querySelector("summary")?.focus();
+      }
+    }
+
+    document.addEventListener("pointerdown", closeAccountMenu);
+    document.addEventListener("keydown", closeAccountMenuWithKeyboard);
+    return () => {
+      document.removeEventListener("pointerdown", closeAccountMenu);
+      document.removeEventListener("keydown", closeAccountMenuWithKeyboard);
+    };
+  }, []);
 
   async function logout() {
     await api.logout();
@@ -70,11 +100,7 @@ export function AppShell({ children }: PropsWithChildren) {
   return (
     <div className="app-shell">
       <header className="site-header">
-        <Link
-          to={defaultPath(user)}
-          className="brand"
-          aria-label="返回工作台"
-        >
+        <Link to="/" className="brand" aria-label="返回每日热榜首页">
           <img
             className="brand-mark"
             src="/icons/buer-rabbit-96.png"
@@ -87,54 +113,53 @@ export function AppShell({ children }: PropsWithChildren) {
             <small>SUBTITLE &amp; VIDEO STUDIO</small>
           </span>
         </Link>
-        <nav className="site-nav" aria-label="主要功能">
-          {hasPermission(user, "douyin_download") &&
-            hasPermission(user, "subtitle_workspace") && (
-              <NavLink to="/douyin-transcribe">
-                <AudioLines size={15} />
-                <span>抖音转文案</span>
-              </NavLink>
-            )}
-          {hasPermission(user, "douyin_download") && (
-            <NavLink to="/douyin">
-              <Download size={15} />
-              <span>抖音下载</span>
-            </NavLink>
-          )}
-          {hasPermission(user, "subtitle_workspace") && (
-            <NavLink to="/subtitle">
-              <Captions size={15} />
-              <span>字幕校对</span>
-            </NavLink>
-          )}
-          {hasPermission(user, "prohibited_word_check") && (
-            <NavLink to="/prohibited-words">
-              <ShieldAlert size={15} />
-              <span>违禁词检测</span>
-            </NavLink>
-          )}
-          {hasPermission(user, "script_analysis") && (
-            <NavLink to="/script-analysis">
-              <Clapperboard size={15} />
-              <span>脚本拆解</span>
-            </NavLink>
-          )}
+        <nav className="site-nav" aria-label="主要导航">
+          <NavLink to="/" end>
+            <House size={15} />
+            <span>首页</span>
+          </NavLink>
+          <NavLink to="/tools">
+            <LayoutGrid size={15} />
+            <span>工具</span>
+          </NavLink>
         </nav>
         <div className="account">
-          <span className="account-name">{user?.username}</span>
-          <ThemeToggle compact />
-          <button
-            className="icon-button"
-            type="button"
-            onClick={() => setPasswordOpen(true)}
-            aria-label="修改密码"
-            title="修改密码"
-          >
-            <KeyRound size={18} />
-          </button>
-          <button className="icon-button" onClick={logout} aria-label="退出登录">
-            <LogOut size={18} />
-          </button>
+          <details ref={accountMenuRef} className="account-menu">
+            <summary aria-label={`账号菜单，当前用户 ${user?.username ?? ""}`}>
+              <span className="account-avatar" aria-hidden="true">
+                {(user?.username || "U").slice(0, 1).toUpperCase()}
+              </span>
+              <span className="account-name">{user?.username}</span>
+              <ChevronDown size={14} aria-hidden="true" />
+            </summary>
+            <div className="account-dropdown">
+              <div className="account-dropdown-head">
+                <UserRound size={17} aria-hidden="true" />
+                <span>
+                  <small>当前账号</small>
+                  <strong>{user?.username}</strong>
+                </span>
+              </div>
+              <div className="account-theme-row">
+                <span>外观主题</span>
+                <ThemeToggle compact />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  accountMenuRef.current?.removeAttribute("open");
+                  setPasswordOpen(true);
+                }}
+              >
+                <KeyRound size={17} aria-hidden="true" />
+                修改密码
+              </button>
+              <button type="button" className="logout-item" onClick={logout}>
+                <LogOut size={17} aria-hidden="true" />
+                退出登录
+              </button>
+            </div>
+          </details>
         </div>
       </header>
       <main>{children}</main>

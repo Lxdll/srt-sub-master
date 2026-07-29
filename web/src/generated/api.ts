@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hot-ranks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Hot Ranks */
+        get: operations["hot_ranks_api_hot_ranks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/douyin/parse": {
         parameters: {
             query?: never;
@@ -770,6 +787,47 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HotRankItemResponse */
+        HotRankItemResponse: {
+            /** Rank */
+            rank: number;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /** Hot Value */
+            hot_value?: string | null;
+            /** Badge */
+            badge?: string | null;
+        };
+        /** HotRankPlatformResponse */
+        HotRankPlatformResponse: {
+            /**
+             * Platform
+             * @enum {string}
+             */
+            platform: "rednote" | "douyin" | "bilibili";
+            /** Display Name */
+            display_name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "fresh" | "stale" | "unavailable";
+            /** Source */
+            source: ("60s" | "uapi") | null;
+            /** Updated At */
+            updated_at: string | null;
+            /** Items */
+            items: components["schemas"]["HotRankItemResponse"][];
+        };
+        /** HotRanksResponse */
+        HotRanksResponse: {
+            /** Generated At */
+            generated_at: string;
+            /** Platforms */
+            platforms: components["schemas"]["HotRankPlatformResponse"][];
+        };
         /** LoginRequest */
         LoginRequest: {
             /** Username */
@@ -978,6 +1036,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    hot_ranks_api_hot_ranks_get: {
+        parameters: {
+            query?: {
+                refresh?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HotRanksResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

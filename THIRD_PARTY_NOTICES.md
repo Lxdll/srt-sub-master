@@ -1,5 +1,13 @@
 # Third-party notices
 
+## vikiboss/60s
+
+The self-hosted primary provider for daily hot rankings uses
+`vikiboss/60s` version 2.53.3:
+<https://github.com/vikiboss/60s>.
+
+MIT License, Copyright (c) 2022-PRESENT Viki.
+
 ## jiji262/douyin-downloader
 
 The Douyin single-video integration is derived from the URL parsing, response

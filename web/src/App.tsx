@@ -9,17 +9,11 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { DouyinPage } from "./pages/DouyinPage";
 import { DouyinTranscribePage } from "./pages/DouyinTranscribePage";
 import { EditorPage } from "./pages/EditorPage";
+import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
-import { NoAccessPage } from "./pages/NoAccessPage";
 import { ProhibitedWordsPage } from "./pages/ProhibitedWordsPage";
 import { ScriptAnalysisPage } from "./pages/ScriptAnalysisPage";
-import { useAuth } from "./lib/auth";
-import { defaultPath } from "./lib/permissions";
-
-function MainHome() {
-  const { user } = useAuth();
-  return <Navigate to={defaultPath(user)} replace />;
-}
+import { ToolsPage } from "./pages/ToolsPage";
 
 export function App() {
   const isAdminHost =
@@ -50,7 +44,15 @@ export function App() {
         path="/"
         element={
           <ProtectedRoute>
-            <MainHome />
+            <HomePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tools"
+        element={
+          <ProtectedRoute>
+            <ToolsPage />
           </ProtectedRoute>
         }
       />
@@ -104,14 +106,7 @@ export function App() {
           </FeatureRoute>
         }
       />
-      <Route
-        path="/no-access"
-        element={
-          <ProtectedRoute>
-            <NoAccessPage />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/no-access" element={<Navigate to="/tools" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

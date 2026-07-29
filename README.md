@@ -66,6 +66,7 @@ python3.11 -m venv .venv
 
 ## 网站能力
 
+- 登录首页展示小红书、抖音和 B 站每日热榜，每个平台最多 10 条。
 - 独立管理后台创建访问账号，Argon2id 密码哈希，HttpOnly Cookie 登录。
 - 导入 UTF-8 编码的 SRT，单文件最大 5MB。
 - 可选本机视频播放；浏览器使用临时对象地址，视频不会上传网站。
@@ -74,6 +75,28 @@ python3.11 -m venv .venv
 - 使用兼容 OpenAI 接口的模型检测社交媒体违禁词，并结合每个账号的个人词库。
 - 使用同一模型服务拆解视频脚本，流式输出脚本亮点、钩子和文字优化建议。
 - 用户之间的任务和字幕严格隔离。
+
+## 每日热榜
+
+登录后的首页展示小红书、抖音和 B 站最新热榜。服务端每 15 分钟刷新，
+优先访问 Compose 内网中自部署的
+[`vikiboss/60s`](https://github.com/vikiboss/60s)，单个平台失败时自动切换到
+[UApiPro](https://uapis.cn/docs/api-reference/get-misc-hotboard)。两个来源都不可用时，
+最多使用 24 小时内的 SQLite 快照；热榜故障不会影响应用登录、工具或
+`/api/health`。
+
+生产环境配置：
+
+```dotenv
+SRT_HOT_RANK_PRIMARY_BASE=http://hot-api:4399
+SRT_HOT_RANK_FALLBACK_BASE=https://uapis.cn
+SRT_HOT_RANK_FALLBACK_API_KEY=
+SRT_HOT_RANK_TIMEOUT_SECONDS=5
+SRT_HOT_RANK_REFRESH_SECONDS=900
+SRT_HOT_RANK_STALE_SECONDS=86400
+```
+
+备用源密钥只配置在服务器的 `runtime.env` 中，不应暴露给浏览器或提交到仓库。
 
 ## 违禁词检测
 
@@ -186,7 +209,9 @@ cd deploy
 docker compose --env-file .env up -d --build
 ```
 
-应用容器不占用宿主机端口，通过现有 Caddy 网络提供服务。将
+应用容器不占用宿主机端口，通过现有 Caddy 网络提供服务。热榜主源只加入
+专用的 `hot-rank` 桥接网络，不映射宿主机端口，也不接入 Caddy；该网络保留
+60s 抓取平台数据所需的出站访问。将
 `deploy/Caddyfile` 中的两个站点块合并到现有 Caddy 配置后，由 Caddy
 自动申请证书。数据库位于 Docker 卷 `srt_data`，建议定期备份：
 
@@ -197,8 +222,10 @@ docker compose exec app sh -c 'cp /data/srt-sub.sqlite3 /data/srt-sub.backup.sql
 ### GitHub 自动部署
 
 `main` 分支的前后端检查全部通过后，GitHub Actions 会构建带提交 SHA
-的应用镜像并推送至 GHCR，然后通过 SSH 更新生产容器。部署脚本会等待
-容器健康检查；新版本启动失败时自动恢复上一个镜像和 Compose 配置。
+的应用镜像并推送至 GHCR，然后通过 SSH 更新生产容器。部署脚本会先拉取并
+启动内网热榜服务，再更新应用并等待应用健康检查；热榜服务异常会记录告警并
+继续部署，由备用源和已保存快照接管。应用新版本启动失败时仍会自动恢复上一个
+镜像和 Compose 配置。
 
 仓库需要配置以下 Actions Secrets：
 
@@ -210,6 +237,17 @@ docker compose exec app sh -c 'cp /data/srt-sub.sqlite3 /data/srt-sub.backup.sql
 服务器运行配置保存在 `/opt/chenjianru/runtime.env`，不会上传到 GitHub。
 每次部署使用 `deploy/remote-deploy.sh` 串行更新，备份存放在
 `/opt/chenjianru/backups`。
+
+60s 镜像固定为 `2.53.3` 的多架构摘要，避免 `latest` 漂移。升级时先核对
+上游发布说明，在测试环境验证 `/health`、`/v2/rednote`、`/v2/douyin` 和
+`/v2/bili`，再同时更新 `deploy/compose.yaml` 中的版本与镜像摘要。
+可用以下命令检查两个容器；应用健康状态不依赖热榜状态：
+
+```bash
+docker compose --env-file /opt/chenjianru/runtime.env \
+  -f /opt/chenjianru/app/deploy/compose.yaml ps app hot-api
+docker logs --tail 100 chenjianru-hot-api
+```
 
 ## 隐私边界
 

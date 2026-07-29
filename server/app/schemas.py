@@ -207,3 +207,25 @@ class ScriptAnalysisResponse(BaseModel):
     highlights: list[ScriptAnalysisHighlight]
     hooks: list[ScriptAnalysisHook]
     suggestions: list[ScriptAnalysisSuggestion]
+
+
+class HotRankItemResponse(BaseModel):
+    rank: int = Field(ge=1, le=10)
+    title: str
+    url: str
+    hot_value: str | None = None
+    badge: str | None = None
+
+
+class HotRankPlatformResponse(BaseModel):
+    platform: Literal["rednote", "douyin", "bilibili"]
+    display_name: str
+    status: Literal["fresh", "stale", "unavailable"]
+    source: Literal["60s", "uapi"] | None
+    updated_at: str | None
+    items: list[HotRankItemResponse]
+
+
+class HotRanksResponse(BaseModel):
+    generated_at: str
+    platforms: list[HotRankPlatformResponse]
