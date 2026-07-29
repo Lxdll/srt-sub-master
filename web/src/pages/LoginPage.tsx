@@ -78,7 +78,13 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
       </section>
       <section className="login-panel">
         <div className="login-card">
-          <div className="login-logo">芦</div>
+          <img
+            className="login-logo"
+            src="/icons/buer-rabbit-96.png"
+            alt=""
+            width="52"
+            height="52"
+          />
           <h2>{adminMode ? "进入管理后台" : "进入不二"}</h2>
           <p>
             {adminMode

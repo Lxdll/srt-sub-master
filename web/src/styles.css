@@ -106,13 +106,10 @@ a {
 }
 
 .brand-mark {
-  display: grid;
   width: 37px;
   height: 37px;
-  place-items: center;
   border-radius: 12px;
-  color: #fff;
-  background: var(--ink);
+  object-fit: cover;
   box-shadow: 0 7px 16px rgba(20, 20, 15, 0.18);
 }
 
@@ -404,16 +401,12 @@ a {
 }
 
 .login-logo {
-  display: grid;
+  display: block;
   width: 52px;
   height: 52px;
   margin-bottom: 31px;
-  place-items: center;
   border-radius: 17px;
-  color: #fff;
-  background: var(--accent);
-  font-family: "Songti SC", serif;
-  font-size: 25px;
+  object-fit: cover;
   box-shadow: 0 11px 25px rgba(231, 91, 51, 0.25);
 }
 
@@ -2087,16 +2080,12 @@ textarea:focus {
   gap: 11px;
 }
 
-.admin-brand > span {
-  display: grid;
+.admin-brand > img {
+  display: block;
   width: 39px;
   height: 39px;
-  place-items: center;
   border-radius: 13px;
-  color: #fff;
-  background: var(--accent);
-  font-family: "Songti SC", serif;
-  font-size: 20px;
+  object-fit: cover;
   box-shadow: 0 8px 20px rgba(231, 91, 51, 0.22);
 }
 
@@ -3556,11 +3545,6 @@ textarea:focus {
 [data-theme="dark"] .site-header {
   border-bottom-color: rgba(255, 255, 255, 0.075);
   background: rgba(21, 22, 17, 0.88);
-}
-
-[data-theme="dark"] .brand-mark {
-  color: #161711;
-  background: #f0eee5;
 }
 
 [data-theme="dark"] .brand small,

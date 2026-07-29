@@ -234,7 +234,12 @@ export function AdminPage() {
     <div className="admin-app">
       <header className="admin-header">
         <div className="admin-brand">
-          <span>芦</span>
+          <img
+            src="/icons/buer-rabbit-96.png"
+            alt=""
+            width="39"
+            height="39"
+          />
           <div>
             <strong>不二</strong>
             <small>ADMIN CONSOLE</small>

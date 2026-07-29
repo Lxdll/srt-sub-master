@@ -9,7 +9,6 @@ import {
   KeyRound,
   LogOut,
   ShieldAlert,
-  Sparkles,
   X,
 } from "lucide-react";
 import { useState, type FormEvent, type PropsWithChildren } from "react";
@@ -76,9 +75,13 @@ export function AppShell({ children }: PropsWithChildren) {
           className="brand"
           aria-label="返回工作台"
         >
-          <span className="brand-mark">
-            <Sparkles size={18} />
-          </span>
+          <img
+            className="brand-mark"
+            src="/icons/buer-rabbit-96.png"
+            alt=""
+            width="37"
+            height="37"
+          />
           <span>
             <strong>不二</strong>
             <small>SUBTITLE &amp; VIDEO STUDIO</small>

@@ -1,0 +1,19 @@
+{
+  "name": "不二 · 字幕与视频工作台",
+  "short_name": "不二",
+  "icons": [
+    {
+      "src": "/icons/buer-rabbit-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/buer-rabbit-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#f6f3ec",
+  "background_color": "#f6f3ec",
+  "display": "standalone"
+}
