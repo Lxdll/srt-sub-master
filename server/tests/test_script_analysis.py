@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import replace
 import json
+from dataclasses import replace
 from uuid import uuid4
 
 import httpx
@@ -18,50 +18,16 @@ from server.app.script_analysis import (
 )
 from server.tests.conftest import login
 
-
 SCRIPT = "你知道为什么大多数人坚持不下来吗？因为他们一开始就把目标定得太大。先从每天五分钟开始。"
 
 
 def model_result(*, excerpt: str = "你知道为什么大多数人坚持不下来吗？"):
     return {
-        "overview": {
-            "title": "从五分钟开始",
-            "synopsis": "用反问引出降低行动门槛的方法。",
-            "core_message": "小目标更容易形成持续行动。",
-            "target_audience": "希望建立习惯的人",
-            "tone": "直接、鼓励",
-            "estimated_duration": "约 25 秒",
-        },
-        "breakdown": [
-            {
-                "section": 9,
-                "label": "反问开场",
-                "excerpt": excerpt,
-                "purpose": "制造共鸣",
-                "visuals": ["人物直视镜头"],
-                "assets": ["近景机位"],
-                "on_screen_text": ["为什么坚持不下来？"],
-                "audio": ["开场停顿"],
-                "production_notes": "第一秒直接进入问题。",
-            }
-        ],
-        "requirements": [
-            {
-                "category": "画面",
-                "items": [
-                    {
-                        "name": "人物近景",
-                        "purpose": "建立交流感",
-                        "priority": "必需",
-                    }
-                ],
-            }
-        ],
         "highlights": [
             {
                 "excerpt": excerpt,
                 "reason": "问题具有普遍共鸣。",
-                "leverage": "第一帧同步展示大字。",
+                "leverage": "保留反问，并尽快接上答案。",
             }
         ],
         "hooks": [
@@ -134,7 +100,8 @@ def test_script_analysis_permission_validation_and_response(
         },
     )
     assert response.status_code == 200, response.text
-    assert response.json()["overview"]["title"] == "从五分钟开始"
+    assert response.json()["highlights"][0]["reason"] == "问题具有普遍共鸣。"
+    assert set(response.json()) == {"highlights", "hooks", "suggestions"}
 
     blank = client.post(
         "/api/script-analysis/analyze",
@@ -170,20 +137,31 @@ def test_script_analysis_permission_validation_and_response(
 def test_normalization_drops_hallucinated_excerpts():
     parsed = model_result(excerpt="原文中不存在的句子")
     normalized = _normalize_result(SCRIPT, parsed)
-    assert normalized["breakdown"] == []
     assert normalized["highlights"] == []
     assert normalized["hooks"] == []
-    assert normalized["requirements"][0]["items"][0]["priority"] == "必需"
     assert normalized["suggestions"][0]["area"] == "行动引导"
 
 
-def test_json_parser_accepts_fences_and_rejects_incomplete_results():
+def test_json_parser_accepts_fences_missing_fields_and_empty_arrays():
     payload = model_result()
     assert _extract_json(f"```json\n{json.dumps(payload, ensure_ascii=False)}\n```")[
-        "overview"
-    ]["title"] == "从五分钟开始"
-    with pytest.raises(ScriptAnalysisError):
-        _extract_json('{"overview":{}}')
+        "highlights"
+    ][0]["reason"] == "问题具有普遍共鸣。"
+    assert _normalize_result(SCRIPT, _extract_json("{}")) == {
+        "highlights": [],
+        "hooks": [],
+        "suggestions": [],
+    }
+    assert _normalize_result(
+        SCRIPT,
+        _extract_json('{"highlights":[],"hooks":[],"suggestions":[]}'),
+    ) == {"highlights": [], "hooks": [], "suggestions": []}
+    with pytest.raises(ScriptAnalysisError, match="无效"):
+        _extract_json('{"highlights":{}}')
+    with pytest.raises(ScriptAnalysisError, match="无效"):
+        _extract_json('{"hooks":null}')
+    with pytest.raises(ScriptAnalysisError, match="无效"):
+        _extract_json("[]")
     with pytest.raises(ScriptAnalysisError):
         _extract_json("not-json")
 
@@ -196,7 +174,8 @@ async def test_openai_compatible_script_analysis_request():
         payload = json.loads(request.content)
         assert payload["temperature"] == 0.2
         assert "response_format" not in payload
-        assert "<视频脚本>" in payload["messages"][1]["content"]
+        assert "<文字脚本>" in payload["messages"][1]["content"]
+        assert "画面、拍摄、道具" in payload["messages"][0]["content"]
         return httpx.Response(
             200,
             json={
@@ -219,7 +198,6 @@ async def test_openai_compatible_script_analysis_request():
     result = await ScriptAnalysisService(
         config, httpx.MockTransport(handler)
     ).analyze(SCRIPT, {"platform": "抖音"})
-    assert result["breakdown"][0]["section"] == 1
     assert result["hooks"][0]["strength"] == "强"
 
 
@@ -253,7 +231,7 @@ async def test_alibaba_script_analysis_json_mode_and_timeout():
     result = await ScriptAnalysisService(
         config, httpx.MockTransport(handler)
     ).analyze(SCRIPT, {})
-    assert result["overview"]["title"] == "从五分钟开始"
+    assert result["highlights"][0]["excerpt"] in SCRIPT
 
     async def timeout(_: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("slow")
@@ -313,3 +291,120 @@ async def test_script_analysis_uses_its_dedicated_timeout(
     )
     await ScriptAnalysisService(config).analyze(SCRIPT, {})
     assert captured["timeout"] == 150
+
+
+@pytest.mark.asyncio
+async def test_streaming_analysis_emits_normalized_semantic_events():
+    highlight_line = json.dumps(
+        {
+            "type": "highlight",
+            "data": model_result()["highlights"][0],
+        },
+        ensure_ascii=False,
+    )
+    hook_line = json.dumps(
+        {"type": "hook", "data": model_result()["hooks"][0]},
+        ensure_ascii=False,
+    )
+    suggestion_line = json.dumps(
+        {
+            "type": "suggestion",
+            "data": model_result()["suggestions"][0],
+        },
+        ensure_ascii=False,
+    )
+    chunks = [
+        highlight_line[:25],
+        highlight_line[25:] + "\n" + hook_line + "\n",
+        suggestion_line,
+    ]
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["stream"] is True
+        assert "NDJSON" in payload["messages"][0]["content"]
+        body = "".join(
+            "data: "
+            + json.dumps(
+                {"choices": [{"delta": {"content": chunk}}]},
+                ensure_ascii=False,
+            )
+            + "\n\n"
+            for chunk in chunks
+        )
+        body += "data: [DONE]\n\n"
+        return httpx.Response(200, content=body.encode())
+
+    config = replace(
+        settings,
+        moderation_api_base="https://model.test/v1",
+        moderation_api_key="test-key",
+        moderation_model="test-model",
+    )
+    events = [
+        item
+        async for item in ScriptAnalysisService(
+            config, httpx.MockTransport(handler)
+        ).analyze_stream(SCRIPT, {})
+    ]
+
+    assert [event for event, _ in events] == [
+        "highlight",
+        "hook",
+        "suggestion",
+        "result",
+        "done",
+    ]
+    assert events[0][1]["excerpt"] in SCRIPT
+    assert events[-2][1] == model_result()
+
+
+def test_script_analysis_stream_endpoint(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    username, password = create_user(client, ["script_analysis"])
+    csrf = login(client, username, password)
+
+    async def analyze_stream(script: str, context: dict[str, object]):
+        assert script == SCRIPT
+        assert context == {}
+        yield "highlight", model_result()["highlights"][0]
+        yield "result", model_result()
+        yield "done", {"ok": True}
+
+    monkeypatch.setattr(script_analysis_service, "analyze_stream", analyze_stream)
+    response = client.post(
+        "/api/script-analysis/analyze/stream",
+        headers={"X-CSRF-Token": csrf},
+        json={"text": SCRIPT},
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert "event: highlight" in response.text
+    assert "event: result" in response.text
+    assert "坚持不下来" in response.text
+
+
+def test_script_analysis_stream_endpoint_serializes_model_error(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    username, password = create_user(client, ["script_analysis"])
+    csrf = login(client, username, password)
+
+    async def analyze_stream(_: str, __: dict[str, object]):
+        if False:
+            yield "done", {"ok": True}
+        raise ScriptAnalysisError(504, "脚本拆解超时，请稍后重试")
+
+    monkeypatch.setattr(script_analysis_service, "analyze_stream", analyze_stream)
+    response = client.post(
+        "/api/script-analysis/analyze/stream",
+        headers={"X-CSRF-Token": csrf},
+        json={"text": SCRIPT},
+    )
+    assert response.status_code == 200, response.text
+    assert "event: error" in response.text
+    assert '"status_code":504' in response.text
+    assert "脚本拆解超时" in response.text

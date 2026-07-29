@@ -175,6 +175,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/script-analysis/analyze/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stream Script Analysis */
+        post: operations["stream_script_analysis_api_script_analysis_analyze_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -813,27 +830,6 @@ export interface components {
             /** Unique Term Count */
             unique_term_count: number;
         };
-        /** ScriptAnalysisBreakdownItem */
-        ScriptAnalysisBreakdownItem: {
-            /** Section */
-            section: number;
-            /** Label */
-            label: string;
-            /** Excerpt */
-            excerpt: string;
-            /** Purpose */
-            purpose: string;
-            /** Visuals */
-            visuals: string[];
-            /** Assets */
-            assets: string[];
-            /** On Screen Text */
-            on_screen_text: string[];
-            /** Audio */
-            audio: string[];
-            /** Production Notes */
-            production_notes: string;
-        };
         /** ScriptAnalysisHighlight */
         ScriptAnalysisHighlight: {
             /** Excerpt */
@@ -861,21 +857,6 @@ export interface components {
             /** Suggestion */
             suggestion: string;
         };
-        /** ScriptAnalysisOverview */
-        ScriptAnalysisOverview: {
-            /** Title */
-            title: string;
-            /** Synopsis */
-            synopsis: string;
-            /** Core Message */
-            core_message: string;
-            /** Target Audience */
-            target_audience: string;
-            /** Tone */
-            tone: string;
-            /** Estimated Duration */
-            estimated_duration: string;
-        };
         /** ScriptAnalysisRequest */
         ScriptAnalysisRequest: {
             /** Text */
@@ -889,32 +870,8 @@ export interface components {
             /** Goal */
             goal?: string | null;
         };
-        /** ScriptAnalysisRequirementGroup */
-        ScriptAnalysisRequirementGroup: {
-            /** Category */
-            category: string;
-            /** Items */
-            items: components["schemas"]["ScriptAnalysisRequirementItem"][];
-        };
-        /** ScriptAnalysisRequirementItem */
-        ScriptAnalysisRequirementItem: {
-            /** Name */
-            name: string;
-            /** Purpose */
-            purpose: string;
-            /**
-             * Priority
-             * @enum {string}
-             */
-            priority: "必需" | "建议";
-        };
         /** ScriptAnalysisResponse */
         ScriptAnalysisResponse: {
-            overview: components["schemas"]["ScriptAnalysisOverview"];
-            /** Breakdown */
-            breakdown: components["schemas"]["ScriptAnalysisBreakdownItem"][];
-            /** Requirements */
-            requirements: components["schemas"]["ScriptAnalysisRequirementGroup"][];
             /** Highlights */
             highlights: components["schemas"]["ScriptAnalysisHighlight"][];
             /** Hooks */
@@ -1356,6 +1313,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScriptAnalysisResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_script_analysis_api_script_analysis_analyze_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScriptAnalysisRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

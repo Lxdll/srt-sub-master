@@ -4693,7 +4693,7 @@ textarea:focus {
 
 .script-analysis-workspace {
   display: grid;
-  align-items: start;
+  align-items: stretch;
   grid-template-columns: 420px minmax(0, 1fr);
   gap: 18px;
 }
@@ -4709,7 +4709,11 @@ textarea:focus {
 .script-input-panel {
   position: sticky;
   top: 94px;
+  height: calc(100dvh - 118px);
+  min-height: 560px;
+  overflow-y: auto;
   padding: 20px;
+  scrollbar-gutter: stable;
 }
 
 .script-panel-heading {
@@ -5013,8 +5017,10 @@ textarea:focus {
 }
 
 .script-output-panel {
-  min-height: 720px;
-  overflow: hidden;
+  height: calc(100dvh - 118px);
+  min-height: 560px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
   background:
     linear-gradient(rgba(251, 250, 246, 0.94), rgba(251, 250, 246, 0.94)),
     radial-gradient(circle at 80% 10%, rgba(231, 91, 51, 0.11), transparent 32rem);
@@ -5025,9 +5031,10 @@ textarea:focus {
 }
 
 .script-empty-state,
-.script-processing-state {
+.script-processing-state,
+.script-error-state {
   display: grid;
-  min-height: 718px;
+  min-height: 100%;
   align-content: center;
   justify-items: center;
   padding: 70px 35px;
@@ -5071,6 +5078,45 @@ textarea:focus {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.8;
+}
+
+.script-error-state {
+  gap: 19px;
+  background:
+    linear-gradient(rgba(255, 248, 245, 0.9), rgba(255, 248, 245, 0.9)),
+    radial-gradient(circle at 50% 34%, rgba(231, 91, 51, 0.13), transparent 18rem);
+}
+
+.script-error-state > span {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+  border: 1px solid rgba(183, 75, 44, 0.2);
+  border-radius: 21px;
+  color: #b74b2c;
+  background: #fff0eb;
+  box-shadow: 0 12px 28px rgba(183, 75, 44, 0.12);
+}
+
+.script-error-state h2 {
+  margin: 8px 0;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 26px;
+}
+
+.script-error-state p {
+  max-width: 520px;
+  margin: 0;
+  color: #a84229;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.75;
+}
+
+.script-error-state .primary-button {
+  min-width: 126px;
+  justify-content: center;
 }
 
 .script-empty-preview {
@@ -5186,9 +5232,60 @@ textarea:focus {
   white-space: nowrap;
 }
 
+.script-result-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.script-result-actions .secondary-button {
+  min-height: 39px;
+  white-space: nowrap;
+}
+
+.script-result-stream-error {
+  display: grid;
+  align-items: center;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  margin: 16px 20px 0;
+  padding: 13px 14px;
+  border: 1px solid rgba(183, 75, 44, 0.22);
+  border-radius: 13px;
+  color: #a84229;
+  background: #fff0eb;
+}
+
+.script-result-stream-error > svg {
+  align-self: start;
+  margin-top: 2px;
+}
+
+.script-result-stream-error strong,
+.script-result-stream-error p {
+  display: block;
+}
+
+.script-result-stream-error strong {
+  font-size: 11px;
+}
+
+.script-result-stream-error p {
+  margin: 3px 0 0;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.script-result-stream-error .secondary-button {
+  min-height: 34px;
+  border-color: rgba(183, 75, 44, 0.28);
+  white-space: nowrap;
+}
+
 .script-result-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-bottom: 1px solid var(--line-soft);
   background: var(--paper-strong);
 }
@@ -5720,6 +5817,27 @@ textarea:focus {
     radial-gradient(circle at 80% 10%, rgba(239, 112, 78, 0.08), transparent 32rem);
 }
 
+[data-theme="dark"] .script-error-state {
+  background:
+    linear-gradient(rgba(42, 29, 24, 0.82), rgba(42, 29, 24, 0.82)),
+    radial-gradient(circle at 50% 34%, rgba(239, 112, 78, 0.1), transparent 18rem);
+}
+
+[data-theme="dark"] .script-error-state > span {
+  color: #ef9b82;
+  background: #32211c;
+}
+
+[data-theme="dark"] .script-error-state p {
+  color: #ef9b82;
+}
+
+[data-theme="dark"] .script-result-stream-error {
+  border-color: rgba(239, 112, 78, 0.24);
+  color: #ef9b82;
+  background: #32211c;
+}
+
 [data-theme="dark"] .script-highlight-card {
   border-color: #494128;
   background: linear-gradient(145deg, #25231a, #211f18);
@@ -5749,6 +5867,37 @@ textarea:focus {
 [data-theme="dark"] .script-hook-meta .strength-强 {
   color: #f09a81;
   background: rgba(231, 91, 51, 0.13);
+}
+
+@media (min-width: 901px) {
+  .script-analysis-page {
+    display: flex;
+    height: calc(100dvh - 74px);
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 24px 0 20px;
+  }
+
+  .script-analysis-hero {
+    flex: 0 0 auto;
+    margin-bottom: 18px;
+  }
+
+  .script-analysis-workspace {
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .script-input-panel,
+  .script-output-panel {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .script-input-panel {
+    position: static;
+  }
 }
 
 @media (max-width: 1180px) {
@@ -5782,13 +5931,21 @@ textarea:focus {
     position: static;
   }
 
+  .script-input-panel,
+  .script-output-panel {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
   .script-textarea {
     min-height: 300px;
   }
 
   .script-output-panel,
   .script-empty-state,
-  .script-processing-state {
+  .script-processing-state,
+  .script-error-state {
     min-height: 580px;
   }
 }
@@ -5838,21 +5995,39 @@ textarea:focus {
     flex-direction: column;
   }
 
+  .script-result-actions,
   .script-result-topbar .primary-button {
     width: 100%;
     justify-content: center;
   }
 
+  .script-result-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .script-result-stream-error {
+    align-items: stretch;
+    grid-template-columns: auto minmax(0, 1fr);
+    margin: 12px 12px 0;
+  }
+
+  .script-result-stream-error .secondary-button {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
   .script-result-stats {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 
-  .script-result-stats > span:nth-child(2) {
+  .script-result-stats > span {
     border-right: 0;
+    border-bottom: 1px solid var(--line-soft);
   }
 
-  .script-result-stats > span:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--line-soft);
+  .script-result-stats > span:last-child {
+    border-bottom: 0;
   }
 
   .script-result-section,

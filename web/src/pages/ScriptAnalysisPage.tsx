@@ -1,17 +1,14 @@
 import {
   AlertTriangle,
-  Boxes,
   Check,
   ChevronDown,
   Clapperboard,
   Clipboard,
   Copy,
   Eraser,
-  FileText,
   Lightbulb,
   ListChecks,
   LoaderCircle,
-  PackageOpen,
   Sparkles,
   Target,
   UploadCloud,
@@ -38,7 +35,7 @@ const PROCESSING_MESSAGES = [
   "正在理解脚本结构…",
   "正在识别内容亮点…",
   "正在定位开场与转折钩子…",
-  "正在整理制作所需内容…",
+  "正在整理文字优化建议…",
 ];
 
 function SectionHeading({
@@ -74,55 +71,6 @@ function SectionHeading({
   );
 }
 
-function listLines(items: string[]) {
-  return items.length ? items.map((item) => `- ${item}`).join("\n") : "- 暂无";
-}
-
-function overviewMarkdown(result: ScriptAnalysisResult) {
-  const item = result.overview;
-  return [
-    "## 内容概览",
-    `- 主题：${item.title}`,
-    `- 内容概述：${item.synopsis}`,
-    `- 核心信息：${item.core_message}`,
-    `- 目标受众：${item.target_audience}`,
-    `- 整体语气：${item.tone}`,
-    `- 预估时长：${item.estimated_duration}`,
-  ].join("\n");
-}
-
-function breakdownMarkdown(result: ScriptAnalysisResult) {
-  return [
-    "## 制作拆解",
-    ...result.breakdown.map((item) =>
-      [
-        `### ${item.section}. ${item.label}`,
-        `> ${item.excerpt}`,
-        `- 段落作用：${item.purpose}`,
-        `- 建议画面：\n${listLines(item.visuals)}`,
-        `- 人物/场景/素材：\n${listLines(item.assets)}`,
-        `- 屏幕文字：\n${listLines(item.on_screen_text)}`,
-        `- 声音设计：\n${listLines(item.audio)}`,
-        `- 制作提示：${item.production_notes || "暂无"}`,
-      ].join("\n"),
-    ),
-  ].join("\n\n");
-}
-
-function requirementsMarkdown(result: ScriptAnalysisResult) {
-  return [
-    "## 所需内容清单",
-    ...result.requirements.map((group) =>
-      [
-        `### ${group.category}`,
-        ...group.items.map(
-          (item) => `- [${item.priority}] ${item.name}：${item.purpose}`,
-        ),
-      ].join("\n"),
-    ),
-  ].join("\n\n");
-}
-
 function highlightsMarkdown(result: ScriptAnalysisResult) {
   return [
     "## 脚本亮点",
@@ -155,10 +103,7 @@ function suggestionsMarkdown(result: ScriptAnalysisResult) {
 
 function fullReportMarkdown(result: ScriptAnalysisResult) {
   return [
-    `# ${result.overview.title}｜脚本拆解`,
-    overviewMarkdown(result),
-    breakdownMarkdown(result),
-    requirementsMarkdown(result),
+    "# 脚本拆解报告",
     highlightsMarkdown(result),
     hooksMarkdown(result),
     suggestionsMarkdown(result),
@@ -301,7 +246,7 @@ export function ScriptAnalysisPage() {
     setResult(null);
     setError("");
     try {
-      const response = await api.analyzeScript(
+      const response = await api.analyzeScriptStream(
         {
           text: script,
           ...(platform && { platform }),
@@ -309,6 +254,7 @@ export function ScriptAnalysisPage() {
           ...(duration && { target_duration_seconds: duration }),
           ...(goal.trim() && { goal: goal.trim() }),
         },
+        setResult,
         controller.signal,
       );
       setResult(response);
@@ -355,7 +301,7 @@ export function ScriptAnalysisPage() {
             <div>
               <span className="eyebrow">AI SCRIPT WORKBENCH</span>
               <h1>脚本拆解</h1>
-              <p>从一段脚本出发，快速整理制作内容、亮点与吸引观众的关键钩子。</p>
+              <p>从一段脚本出发，快速识别文字亮点、关键钩子与可执行的优化方向。</p>
             </div>
           </div>
           <div className="script-analysis-privacy">
@@ -386,7 +332,7 @@ export function ScriptAnalysisPage() {
               aria-label="视频脚本"
               value={text}
               maxLength={MAX_TEXT_LENGTH}
-              placeholder={"把视频脚本粘贴到这里…\n\nAI 会拆解每段的制作意图、画面素材、亮点和钩子。"}
+              placeholder={"把视频脚本粘贴到这里…\n\nAI 会识别脚本亮点、钩子，并给出文字优化建议。"}
               onChange={(event) => updateText(event.target.value)}
             />
 
@@ -525,13 +471,6 @@ export function ScriptAnalysisPage() {
               </div>
             </details>
 
-            {error && (
-              <div className="script-inline-message error" role="alert">
-                <AlertTriangle size={16} />
-                {error}
-              </div>
-            )}
-
             <button
               type="button"
               className="primary-button script-analyze-button"
@@ -551,7 +490,7 @@ export function ScriptAnalysisPage() {
             className={`script-output-panel ${result ? "ready" : ""}`}
             aria-live="polite"
           >
-            {analyzing ? (
+            {analyzing && !result ? (
               <div className="script-processing-state">
                 <div className="script-processing-orbit">
                   <Clapperboard size={29} />
@@ -575,6 +514,26 @@ export function ScriptAnalysisPage() {
                   <X size={15} /> 取消分析
                 </button>
               </div>
+            ) : error && !result ? (
+              <div className="script-error-state" role="alert">
+                <span>
+                  <AlertTriangle size={28} />
+                </span>
+                <div>
+                  <span className="eyebrow">ANALYSIS INTERRUPTED</span>
+                  <h2>这次拆解没有完成</h2>
+                  <p>{error}</p>
+                </div>
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={!text.trim() || readingFile}
+                  onClick={analyze}
+                >
+                  <Sparkles size={16} />
+                  重新拆解
+                </button>
+              </div>
             ) : !result ? (
               <div className="script-empty-state">
                 <div>
@@ -582,9 +541,9 @@ export function ScriptAnalysisPage() {
                   <span />
                 </div>
                 <span className="eyebrow">YOUR CREATIVE BLUEPRINT</span>
-                <h2>制作思路会在这里展开</h2>
+                <h2>文字优化思路会在这里展开</h2>
                 <p>
-                  输入脚本并开始分析后，你会得到分段制作清单、亮点、钩子和可执行的优化建议。
+                  输入脚本并开始分析后，你会得到脚本亮点、钩子和可执行的文字优化建议。
                 </p>
                 <div className="script-empty-preview" aria-hidden="true">
                   <span />
@@ -596,31 +555,66 @@ export function ScriptAnalysisPage() {
               <div className="script-result">
                 <header className="script-result-topbar">
                   <div>
-                    <span className="eyebrow">ANALYSIS COMPLETE</span>
-                    <h2>{result.overview.title}</h2>
-                    <p>{result.overview.synopsis}</p>
+                    <span className="eyebrow">
+                      {analyzing ? "ANALYZING · LIVE" : "ANALYSIS COMPLETE"}
+                    </span>
+                    <h2>{analyzing ? "正在生成脚本拆解…" : "脚本拆解完成"}</h2>
+                    <p>
+                      {analyzing
+                        ? "模型生成一条，这里就会立即显示一条。"
+                        : "下面只保留对文字脚本有帮助的亮点、钩子与优化建议。"}
+                    </p>
                   </div>
-                  <button
-                    type="button"
-                    className="primary-button"
-                    onClick={() =>
-                      copySection("all", fullReportMarkdown(result))
-                    }
-                  >
-                    {copiedSection === "all" ? (
-                      <Check size={16} />
-                    ) : (
-                      <Copy size={16} />
+                  <div className="script-result-actions">
+                    {analyzing && (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={cancelAnalysis}
+                      >
+                        <X size={15} /> 取消分析
+                      </button>
                     )}
-                    {copiedSection === "all" ? "已复制完整报告" : "复制完整报告"}
-                  </button>
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={() =>
+                        copySection("all", fullReportMarkdown(result))
+                      }
+                    >
+                      {copiedSection === "all" ? (
+                        <Check size={16} />
+                      ) : (
+                        <Copy size={16} />
+                      )}
+                      {copiedSection === "all"
+                        ? "已复制完整报告"
+                        : analyzing
+                          ? "复制当前结果"
+                          : "复制完整报告"}
+                    </button>
+                  </div>
                 </header>
 
+                {error && (
+                  <div className="script-result-stream-error" role="alert">
+                    <AlertTriangle size={18} />
+                    <div>
+                      <strong>结果未完整生成</strong>
+                      <p>{error}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={!text.trim() || readingFile}
+                      onClick={analyze}
+                    >
+                      重新拆解
+                    </button>
+                  </div>
+                )}
+
                 <div className="script-result-stats">
-                  <span>
-                    <Boxes size={16} />
-                    <strong>{result.breakdown.length}</strong> 个内容段
-                  </span>
                   <span>
                     <Lightbulb size={16} />
                     <strong>{result.highlights.length}</strong> 个亮点
@@ -631,165 +625,16 @@ export function ScriptAnalysisPage() {
                   </span>
                   <span>
                     <Target size={16} />
-                    {result.overview.estimated_duration}
+                    <strong>{result.suggestions.length}</strong> 条建议
                   </span>
                 </div>
-
-                <section className="script-result-section script-overview-section">
-                  <SectionHeading
-                    icon={<FileText size={18} />}
-                    eyebrow="OVERVIEW"
-                    title="内容概览"
-                    description="先抓住脚本想传达的核心"
-                    copied={copiedSection === "overview"}
-                    onCopy={() =>
-                      copySection("overview", overviewMarkdown(result))
-                    }
-                  />
-                  <div className="script-overview-grid">
-                    <article>
-                      <small>核心信息</small>
-                      <p>{result.overview.core_message}</p>
-                    </article>
-                    <article>
-                      <small>目标受众</small>
-                      <p>{result.overview.target_audience}</p>
-                    </article>
-                    <article>
-                      <small>整体语气</small>
-                      <p>{result.overview.tone}</p>
-                    </article>
-                  </div>
-                </section>
-
-                <section className="script-result-section">
-                  <SectionHeading
-                    icon={<Clapperboard size={18} />}
-                    eyebrow="PRODUCTION BREAKDOWN"
-                    title="制作拆解"
-                    description="按内容推进顺序整理每段的执行要点"
-                    copied={copiedSection === "breakdown"}
-                    onCopy={() =>
-                      copySection("breakdown", breakdownMarkdown(result))
-                    }
-                  />
-                  {result.breakdown.length ? (
-                    <div className="script-breakdown-list">
-                      {result.breakdown.map((item) => (
-                        <article
-                          className="script-breakdown-card"
-                          key={`${item.section}-${item.excerpt}`}
-                        >
-                          <div className="script-breakdown-index">
-                            {String(item.section).padStart(2, "0")}
-                          </div>
-                          <div className="script-breakdown-content">
-                            <div>
-                              <h3>{item.label}</h3>
-                              <span>{item.purpose}</span>
-                            </div>
-                            <blockquote>{item.excerpt}</blockquote>
-                            <div className="script-breakdown-grid">
-                              <div>
-                                <strong>建议画面</strong>
-                                <ul>
-                                  {item.visuals.map((value) => (
-                                    <li key={value}>{value}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                              <div>
-                                <strong>人物 / 场景 / 素材</strong>
-                                <ul>
-                                  {item.assets.map((value) => (
-                                    <li key={value}>{value}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                              <div>
-                                <strong>屏幕文字</strong>
-                                <ul>
-                                  {item.on_screen_text.map((value) => (
-                                    <li key={value}>{value}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                              <div>
-                                <strong>声音设计</strong>
-                                <ul>
-                                  {item.audio.map((value) => (
-                                    <li key={value}>{value}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            </div>
-                            {item.production_notes && (
-                              <p className="script-production-note">
-                                <WandSparkles size={14} />
-                                {item.production_notes}
-                              </p>
-                            )}
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="script-result-empty">未识别到可定位的内容段落。</p>
-                  )}
-                </section>
-
-                <section className="script-result-section">
-                  <SectionHeading
-                    icon={<PackageOpen size={18} />}
-                    eyebrow="CONTENT CHECKLIST"
-                    title="所需内容清单"
-                    description="把拍摄和后期需要准备的东西一次列清"
-                    copied={copiedSection === "requirements"}
-                    onCopy={() =>
-                      copySection(
-                        "requirements",
-                        requirementsMarkdown(result),
-                      )
-                    }
-                  />
-                  {result.requirements.length ? (
-                    <div className="script-requirement-grid">
-                      {result.requirements.map((group) => (
-                        <article key={group.category}>
-                          <h3>{group.category}</h3>
-                          <div>
-                            {group.items.map((item) => (
-                              <div key={`${item.name}-${item.purpose}`}>
-                                <span
-                                  className={
-                                    item.priority === "必需"
-                                      ? "required"
-                                      : "recommended"
-                                  }
-                                >
-                                  {item.priority}
-                                </span>
-                                <p>
-                                  <strong>{item.name}</strong>
-                                  <small>{item.purpose}</small>
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="script-result-empty">暂无额外内容准备项。</p>
-                  )}
-                </section>
 
                 <section className="script-result-section">
                   <SectionHeading
                     icon={<Lightbulb size={18} />}
                     eyebrow="HIGHLIGHTS"
                     title="脚本亮点"
-                    description="值得在画面、节奏和表达上重点放大的内容"
+                    description="值得在结构、节奏和表达上重点放大的文字"
                     copied={copiedSection === "highlights"}
                     onCopy={() =>
                       copySection("highlights", highlightsMarkdown(result))

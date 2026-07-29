@@ -4,7 +4,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-
 TaskStatus = Literal[
     "uploading",
     "queued",
@@ -183,38 +182,6 @@ class ScriptAnalysisRequest(BaseModel):
     goal: str | None = Field(default=None, max_length=500)
 
 
-class ScriptAnalysisOverview(BaseModel):
-    title: str
-    synopsis: str
-    core_message: str
-    target_audience: str
-    tone: str
-    estimated_duration: str
-
-
-class ScriptAnalysisBreakdownItem(BaseModel):
-    section: int = Field(ge=1)
-    label: str
-    excerpt: str
-    purpose: str
-    visuals: list[str]
-    assets: list[str]
-    on_screen_text: list[str]
-    audio: list[str]
-    production_notes: str
-
-
-class ScriptAnalysisRequirementItem(BaseModel):
-    name: str
-    purpose: str
-    priority: Literal["必需", "建议"]
-
-
-class ScriptAnalysisRequirementGroup(BaseModel):
-    category: str
-    items: list[ScriptAnalysisRequirementItem]
-
-
 class ScriptAnalysisHighlight(BaseModel):
     excerpt: str
     reason: str
@@ -237,9 +204,6 @@ class ScriptAnalysisSuggestion(BaseModel):
 
 
 class ScriptAnalysisResponse(BaseModel):
-    overview: ScriptAnalysisOverview
-    breakdown: list[ScriptAnalysisBreakdownItem]
-    requirements: list[ScriptAnalysisRequirementGroup]
     highlights: list[ScriptAnalysisHighlight]
     hooks: list[ScriptAnalysisHook]
     suggestions: list[ScriptAnalysisSuggestion]
