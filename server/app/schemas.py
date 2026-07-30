@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 TaskStatus = Literal[
     "uploading",
@@ -17,6 +17,7 @@ PermissionKey = Literal[
     "douyin_download",
     "prohibited_word_check",
     "script_analysis",
+    "script_library",
 ]
 
 
@@ -207,6 +208,57 @@ class ScriptAnalysisResponse(BaseModel):
     highlights: list[ScriptAnalysisHighlight]
     hooks: list[ScriptAnalysisHook]
     suggestions: list[ScriptAnalysisSuggestion]
+
+
+class ScriptCreateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    body: str = Field(min_length=1, max_length=30_000)
+
+
+class ScriptUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    body: str | None = Field(default=None, min_length=1, max_length=30_000)
+
+    @model_validator(mode="after")
+    def require_change(self) -> "ScriptUpdateRequest":
+        if self.title is None and self.body is None:
+            raise ValueError("至少需要提供一个要修改的字段")
+        return self
+
+
+class ScriptAuthorResponse(BaseModel):
+    id: str
+    username: str
+
+
+class ScriptListItemResponse(BaseModel):
+    id: str
+    title: str
+    excerpt: str
+    matched_in: list[Literal["title", "body"]]
+    character_count: int = Field(ge=0)
+    created_by: ScriptAuthorResponse
+    updated_by: ScriptAuthorResponse
+    created_at: str
+    updated_at: str
+
+
+class ScriptListResponse(BaseModel):
+    items: list[ScriptListItemResponse]
+    total: int = Field(ge=0)
+    limit: int = Field(ge=1)
+    offset: int = Field(ge=0)
+
+
+class ScriptDetailResponse(BaseModel):
+    id: str
+    title: str
+    body: str
+    character_count: int = Field(ge=0)
+    created_by: ScriptAuthorResponse
+    updated_by: ScriptAuthorResponse
+    created_at: str
+    updated_at: str
 
 
 class HotRankItemResponse(BaseModel):

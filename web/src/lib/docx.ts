@@ -1,4 +1,4 @@
-import { inflateRaw } from "pako";
+import { Inflate } from "pako";
 
 const MAX_UNCOMPRESSED_XML_BYTES = 8 * 1024 * 1024;
 const WORD_NAMESPACE =
@@ -78,9 +78,30 @@ function readEntry(bytes: Uint8Array, entry: ZipEntry): Uint8Array {
   const compressed = bytes.subarray(dataStart, dataEnd);
   if (entry.compression === 0) return compressed;
   if (entry.compression === 8) {
+    const chunks: Uint8Array[] = [];
+    let outputSize = 0;
     try {
-      return inflateRaw(compressed);
-    } catch {
+      const inflator = new Inflate({ raw: true, chunkSize: 64 * 1024 });
+      inflator.onData = (chunk) => {
+        outputSize += chunk.byteLength;
+        if (outputSize > MAX_UNCOMPRESSED_XML_BYTES) {
+          throw new DocxError("Word 文档内容过大，请精简后再试。");
+        }
+        chunks.push(chunk);
+      };
+      inflator.push(compressed, true);
+      if (inflator.err) {
+        throw new Error(inflator.msg || "inflate failed");
+      }
+      const output = new Uint8Array(outputSize);
+      let offset = 0;
+      for (const chunk of chunks) {
+        output.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      return output;
+    } catch (reason) {
+      if (reason instanceof DocxError) throw reason;
       throw new DocxError("无法解压这个 Word 文件，文件可能已损坏或加密。");
     }
   }

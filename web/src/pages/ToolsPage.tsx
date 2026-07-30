@@ -5,6 +5,7 @@ import {
   Clapperboard,
   Download,
   Inbox,
+  LibraryBig,
   ShieldAlert,
   Sparkles,
   X,
@@ -26,6 +27,7 @@ const TOOL_ICONS: Record<ToolKey, LucideIcon> = {
   subtitle_workspace: Captions,
   prohibited_word_check: ShieldAlert,
   script_analysis: Clapperboard,
+  script_library: LibraryBig,
 };
 
 function ToolCard({ tool }: { tool: ToolDefinition }) {

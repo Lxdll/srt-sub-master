@@ -69,6 +69,7 @@ from .local_agent_transcription import (
     validate_local_douyin_result,
 )
 from .script_analysis import ScriptAnalysisError, script_analysis_service
+from .script_library import router as script_library_router
 from .security import (
     FEATURE_PERMISSIONS,
     admin_user,
@@ -149,6 +150,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(script_library_router)
 
 
 @app.post("/api/internal/fc/transcription-events", include_in_schema=False)

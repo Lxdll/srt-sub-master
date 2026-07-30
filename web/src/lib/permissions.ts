@@ -5,6 +5,7 @@ export const FEATURE_LABELS: Record<PermissionKey, string> = {
   douyin_download: "抖音下载",
   prohibited_word_check: "违禁词检测",
   script_analysis: "脚本拆解",
+  script_library: "共享脚本库",
 };
 
 export const FEATURE_PERMISSIONS = Object.keys(
@@ -16,7 +17,8 @@ export type ToolKey =
   | "douyin_download"
   | "subtitle_workspace"
   | "prohibited_word_check"
-  | "script_analysis";
+  | "script_analysis"
+  | "script_library";
 
 export interface ToolDefinition {
   key: ToolKey;
@@ -81,6 +83,16 @@ export const TOOLS: ToolDefinition[] = [
     path: "/script-analysis",
     group: "copy",
     permissions: ["script_analysis"],
+  },
+  {
+    key: "script_library",
+    title: "共享脚本库",
+    description: "集中保存团队脚本，按标题或正文快速搜索和复用。",
+    input: "文字或 Word 文档",
+    output: "可搜索的共享脚本",
+    path: "/script-library",
+    group: "copy",
+    permissions: ["script_library"],
   },
 ];
 

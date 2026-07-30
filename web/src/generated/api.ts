@@ -4,6 +4,43 @@
  */
 
 export interface paths {
+    "/api/scripts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Scripts */
+        get: operations["list_scripts_api_scripts_get"];
+        put?: never;
+        /** Create Script */
+        post: operations["create_script_api_scripts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scripts/{script_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Script */
+        get: operations["get_script_api_scripts__script_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Script */
+        delete: operations["delete_script_api_scripts__script_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Script */
+        patch: operations["update_script_api_scripts__script_id__patch"];
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -700,7 +737,7 @@ export interface components {
              */
             is_admin: boolean;
             /** Permissions */
-            permissions?: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check" | "script_analysis")[];
+            permissions?: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check" | "script_analysis" | "script_library")[];
         };
         /** CustomProhibitedWordRequest */
         CustomProhibitedWordRequest: {
@@ -946,6 +983,74 @@ export interface components {
             /** Recommendation */
             recommendation: string;
         };
+        /** ScriptAuthorResponse */
+        ScriptAuthorResponse: {
+            /** Id */
+            id: string;
+            /** Username */
+            username: string;
+        };
+        /** ScriptCreateRequest */
+        ScriptCreateRequest: {
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+        };
+        /** ScriptDetailResponse */
+        ScriptDetailResponse: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /** Character Count */
+            character_count: number;
+            created_by: components["schemas"]["ScriptAuthorResponse"];
+            updated_by: components["schemas"]["ScriptAuthorResponse"];
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** ScriptListItemResponse */
+        ScriptListItemResponse: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Excerpt */
+            excerpt: string;
+            /** Matched In */
+            matched_in: ("title" | "body")[];
+            /** Character Count */
+            character_count: number;
+            created_by: components["schemas"]["ScriptAuthorResponse"];
+            updated_by: components["schemas"]["ScriptAuthorResponse"];
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** ScriptListResponse */
+        ScriptListResponse: {
+            /** Items */
+            items: components["schemas"]["ScriptListItemResponse"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** ScriptUpdateRequest */
+        ScriptUpdateRequest: {
+            /** Title */
+            title?: string | null;
+            /** Body */
+            body?: string | null;
+        };
         /** SegmentResult */
         SegmentResult: {
             /** Start Ms */
@@ -991,7 +1096,7 @@ export interface components {
         /** UpdateUserPermissionsRequest */
         UpdateUserPermissionsRequest: {
             /** Permissions */
-            permissions: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check" | "script_analysis")[];
+            permissions: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check" | "script_analysis" | "script_library")[];
         };
         /** ValidationError */
         ValidationError: {
@@ -1018,6 +1123,181 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_scripts_api_scripts_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_script_api_scripts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScriptCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_script_api_scripts__script_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                script_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_script_api_scripts__script_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                script_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_script_api_scripts__script_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                script_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScriptUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_api_health_get: {
         parameters: {
             query?: never;

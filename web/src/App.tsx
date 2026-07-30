@@ -13,6 +13,8 @@ import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProhibitedWordsPage } from "./pages/ProhibitedWordsPage";
 import { ScriptAnalysisPage } from "./pages/ScriptAnalysisPage";
+import { ScriptLibraryDetailPage } from "./pages/ScriptLibraryDetailPage";
+import { ScriptLibraryPage } from "./pages/ScriptLibraryPage";
 import { ToolsPage } from "./pages/ToolsPage";
 
 export function App() {
@@ -103,6 +105,22 @@ export function App() {
         element={
           <FeatureRoute permission="script_analysis">
             <ScriptAnalysisPage />
+          </FeatureRoute>
+        }
+      />
+      <Route
+        path="/script-library"
+        element={
+          <FeatureRoute permission="script_library">
+            <ScriptLibraryPage />
+          </FeatureRoute>
+        }
+      />
+      <Route
+        path="/script-library/:scriptId"
+        element={
+          <FeatureRoute permission="script_library">
+            <ScriptLibraryDetailPage />
           </FeatureRoute>
         }
       />

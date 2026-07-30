@@ -64,4 +64,17 @@ describe("ToolsPage", () => {
     expect(screen.getByText("这个工具尚未向你的账号开放")).toBeTruthy();
     expect(screen.getByText("脚本拆解")).toBeTruthy();
   });
+
+  it("shows the shared script library only with its dedicated permission", () => {
+    renderPage();
+    expect(screen.queryByText("共享脚本库")).toBeNull();
+
+    cleanup();
+    mocks.user!.permissions = ["script_library"];
+    renderPage();
+    expect(screen.getByText("共享脚本库")).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /开始使用/ }).getAttribute("href"),
+    ).toBe("/script-library");
+  });
 });

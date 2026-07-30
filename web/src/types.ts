@@ -7,7 +7,8 @@ export type PermissionKey =
   | "subtitle_workspace"
   | "douyin_download"
   | "prohibited_word_check"
-  | "script_analysis";
+  | "script_analysis"
+  | "script_library";
 
 export interface User {
   id: string;
@@ -152,3 +153,15 @@ export type ProhibitedWordsCheckResult =
 
 export type ScriptAnalysisResult =
   components["schemas"]["ScriptAnalysisResponse"];
+
+export type ScriptLibraryUser =
+  components["schemas"]["ScriptAuthorResponse"];
+
+export type ScriptLibraryListItem =
+  components["schemas"]["ScriptListItemResponse"];
+
+export type ScriptLibraryDetail =
+  components["schemas"]["ScriptDetailResponse"];
+
+export type ScriptLibraryListResponse =
+  components["schemas"]["ScriptListResponse"];

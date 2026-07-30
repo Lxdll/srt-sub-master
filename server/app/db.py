@@ -172,6 +172,19 @@ CREATE TABLE IF NOT EXISTS user_prohibited_words (
 CREATE INDEX IF NOT EXISTS idx_user_prohibited_words_created
 ON user_prohibited_words(user_id, created_at);
 
+CREATE TABLE IF NOT EXISTS scripts (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_by_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_scripts_updated_at
+ON scripts(updated_at DESC);
+
 CREATE TABLE IF NOT EXISTS hot_rank_snapshots (
     platform TEXT PRIMARY KEY,
     source TEXT NOT NULL,

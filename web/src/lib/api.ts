@@ -8,6 +8,8 @@ import type {
   User,
   ScriptAnalysisResult,
   HotRanksResponse,
+  ScriptLibraryDetail,
+  ScriptLibraryListResponse,
 } from "../types";
 import type { components } from "../generated/api";
 
@@ -408,5 +410,54 @@ export const api = {
       method: "DELETE",
       csrf: true,
     });
+  },
+
+  scripts(query = "", limit = 20, offset = 0) {
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    });
+    if (query.trim()) params.set("q", query.trim());
+    return request<ScriptLibraryListResponse>(
+      `/api/scripts?${params.toString()}`,
+    );
+  },
+
+  script(scriptId: string) {
+    return request<ScriptLibraryDetail>(
+      `/api/scripts/${encodeURIComponent(scriptId)}`,
+    );
+  },
+
+  createScript(title: string, body: string) {
+    return request<ScriptLibraryDetail>("/api/scripts", {
+      method: "POST",
+      csrf: true,
+      body: JSON.stringify({ title, body }),
+    });
+  },
+
+  updateScript(
+    scriptId: string,
+    payload: Partial<Pick<ScriptLibraryDetail, "title" | "body">>,
+  ) {
+    return request<ScriptLibraryDetail>(
+      `/api/scripts/${encodeURIComponent(scriptId)}`,
+      {
+        method: "PATCH",
+        csrf: true,
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  deleteScript(scriptId: string) {
+    return request<{ ok: boolean }>(
+      `/api/scripts/${encodeURIComponent(scriptId)}`,
+      {
+        method: "DELETE",
+        csrf: true,
+      },
+    );
   },
 };

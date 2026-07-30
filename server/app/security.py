@@ -21,6 +21,7 @@ FEATURE_PERMISSIONS = frozenset(
         "douyin_download",
         "prohibited_word_check",
         "script_analysis",
+        "script_library",
     }
 )
 command_serializer = URLSafeTimedSerializer(
