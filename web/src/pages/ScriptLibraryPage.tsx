@@ -254,6 +254,16 @@ export function ScriptLibraryPage() {
                 const detailPath = `/script-library/${encodeURIComponent(script.id)}${
                   currentSearch ? `?${currentSearch}` : ""
                 }`;
+                const titleMatched = script.matched_in.includes("title");
+                const bodyMatched = script.matched_in.includes("body");
+                const matchLabel =
+                  titleMatched && bodyMatched
+                    ? "标题和正文命中"
+                    : titleMatched
+                      ? "标题命中"
+                      : bodyMatched
+                        ? "正文命中"
+                        : "";
                 return (
                   <Link
                     key={script.id}
@@ -269,8 +279,18 @@ export function ScriptLibraryPage() {
                         <h2 aria-label={script.title}>
                           <HighlightedText text={script.title} query={query} />
                         </h2>
-                        {script.matched_in.includes("title") && query && (
-                          <span>标题命中</span>
+                        {query && matchLabel && (
+                          <span
+                            className={`script-library-match-tag ${
+                              titleMatched && bodyMatched
+                                ? "both"
+                                : bodyMatched
+                                  ? "body"
+                                  : "title"
+                            }`}
+                          >
+                            {matchLabel}
+                          </span>
                         )}
                       </div>
                       <p>

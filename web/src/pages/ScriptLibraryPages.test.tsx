@@ -103,12 +103,39 @@ describe("Script library pages", () => {
     ).toBeTruthy();
     expect(mocks.scripts).toHaveBeenCalledWith("夏日", 20, 20);
     expect(document.querySelectorAll("mark").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("标题和正文命中")).toBeTruthy();
     expect(screen.getByText("2 / 2")).toBeTruthy();
     expect(
       screen
         .getByRole("link", { name: /夏日新品开场/ })
         .getAttribute("href"),
     ).toBe("/script-library/script-1?q=%E5%A4%8F%E6%97%A5&offset=20");
+  });
+
+  it("shows a body-match tag when only the script body matches", async () => {
+    mocks.scripts.mockResolvedValueOnce({
+      items: [
+        {
+          ...listItem,
+          title: "新品开场",
+          matched_in: ["body"],
+        },
+      ],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+
+    renderWithClient(
+      <Routes>
+        <Route path="/script-library" element={<ScriptLibraryPage />} />
+      </Routes>,
+      "/script-library?q=夏日",
+    );
+
+    expect(await screen.findByText("正文命中")).toBeTruthy();
+    expect(screen.queryByText("标题命中")).toBeNull();
+    expect(screen.queryByText("标题和正文命中")).toBeNull();
   });
 
   it("debounces a new keyword and resets the result offset", async () => {

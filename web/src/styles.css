@@ -1376,6 +1376,16 @@
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.64);
   box-shadow: 0 10px 30px rgba(33, 31, 25, 0.045);
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.script-library-search-panel:focus-within {
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 36px rgba(33, 31, 25, 0.085);
+  transform: translateY(-1px);
 }
 
 .script-library-search-panel form {
@@ -1389,6 +1399,11 @@
 
 .script-library-search-panel form > svg {
   color: var(--muted);
+  transition: color 160ms ease;
+}
+
+.script-library-search-panel form:focus-within > svg {
+  color: var(--accent);
 }
 
 .script-library-search-panel input {
@@ -1401,6 +1416,13 @@
   background: transparent;
   font: inherit;
   font-size: 14px;
+}
+
+.script-library-search-panel input:focus,
+.script-library-search-panel input:focus-visible {
+  border: 0;
+  outline: 0;
+  box-shadow: none;
 }
 
 .script-library-search-panel input::-webkit-search-cancel-button {
@@ -1498,7 +1520,7 @@
   line-height: 1.35;
 }
 
-.script-library-card-title > span {
+.script-library-match-tag {
   flex: 0 0 auto;
   margin-top: 3px;
   padding: 3px 7px;
@@ -1507,6 +1529,16 @@
   background: #fff0eb;
   font-size: 8px;
   font-weight: 750;
+}
+
+.script-library-match-tag.body {
+  color: #26705a;
+  background: #e8f6ef;
+}
+
+.script-library-match-tag.both {
+  color: #684a87;
+  background: #f2ebf9;
 }
 
 .script-library-card-main > p {
@@ -2128,6 +2160,21 @@
   background: rgba(32, 33, 27, 0.76);
 }
 
+[data-theme="dark"] .script-library-search-panel:focus-within {
+  background: rgba(37, 38, 31, 0.92);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+}
+
+[data-theme="dark"] .script-library-match-tag.body {
+  color: #9ad7c4;
+  background: #19342e;
+}
+
+[data-theme="dark"] .script-library-match-tag.both {
+  color: #d8bcec;
+  background: #332741;
+}
+
 [data-theme="dark"] .script-library-card mark,
 [data-theme="dark"] .script-library-detail mark {
   color: #171711;
@@ -2221,7 +2268,7 @@
     font-size: 18px;
   }
 
-  .script-library-card-title > span {
+  .script-library-match-tag {
     order: -1;
   }
 
