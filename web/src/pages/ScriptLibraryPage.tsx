@@ -1,8 +1,6 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
-  ChevronLeft,
-  ChevronRight,
   FilePlus2,
   Inbox,
   LibraryBig,
@@ -12,6 +10,7 @@ import {
 } from "lucide-react";
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -25,33 +24,97 @@ import {
 } from "../components/ScriptLibraryShared";
 import { api } from "../lib/api";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 24;
 const SCROLL_STORAGE_KEY = "script-library-scroll";
-
-function normalizedOffset(value: string | null) {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
-}
+const DESKTOP_ROW_HEIGHT = 176;
+const MOBILE_ROW_HEIGHT = 218;
+const VIRTUAL_OVERSCAN = 4;
 
 export function ScriptLibraryPage() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q")?.trim() ?? "";
-  const offset = normalizedOffset(searchParams.get("offset"));
   const [draftQuery, setDraftQuery] = useState(query);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [listViewport, setListViewport] = useState({
+    scrollTop: 0,
+    height: 600,
+    width: 960,
+  });
   const restoredScrollRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const scripts = useQuery({
-    queryKey: ["scripts", query, offset],
-    queryFn: () => api.scripts(query, PAGE_SIZE, offset),
-    placeholderData: (previous) => previous,
+  const resultsViewportRef = useRef<HTMLElement>(null);
+  const scripts = useInfiniteQuery({
+    queryKey: ["scripts", query],
+    queryFn: ({ pageParam }) => api.scripts(query, PAGE_SIZE, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.offset + lastPage.items.length;
+      return nextOffset < lastPage.total ? nextOffset : undefined;
+    },
   });
+  const items = useMemo(
+    () => scripts.data?.pages.flatMap((page) => page.items) ?? [],
+    [scripts.data],
+  );
+  const total = scripts.data?.pages[0]?.total ?? 0;
+  const rowHeight =
+    listViewport.width <= 620 ? MOBILE_ROW_HEIGHT : DESKTOP_ROW_HEIGHT;
+  const virtualRowCount =
+    items.length +
+    (scripts.hasNextPage ||
+    scripts.isFetchingNextPage ||
+    scripts.isFetchNextPageError
+      ? 1
+      : 0);
+  const virtualStart = Math.max(
+    0,
+    Math.floor(listViewport.scrollTop / rowHeight) - VIRTUAL_OVERSCAN,
+  );
+  const virtualEnd = Math.min(
+    virtualRowCount,
+    Math.ceil(
+      (listViewport.scrollTop + listViewport.height) / rowHeight,
+    ) + VIRTUAL_OVERSCAN,
+  );
+  const virtualIndexes = Array.from(
+    { length: Math.max(0, virtualEnd - virtualStart) },
+    (_, index) => virtualStart + index,
+  );
 
   useEffect(() => {
     setDraftQuery(query);
   }, [query]);
+
+  useEffect(() => {
+    const viewport = resultsViewportRef.current;
+    if (!viewport) return;
+
+    function measureViewport() {
+      const currentViewport = resultsViewportRef.current;
+      if (!currentViewport) return;
+      setListViewport({
+        scrollTop: currentViewport.scrollTop,
+        height: currentViewport.clientHeight || 600,
+        width: currentViewport.clientWidth || 960,
+      });
+    }
+
+    measureViewport();
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(measureViewport);
+    observer?.observe(viewport);
+    viewport.addEventListener("scroll", measureViewport, { passive: true });
+    window.addEventListener("resize", measureViewport);
+    return () => {
+      observer?.disconnect();
+      viewport.removeEventListener("scroll", measureViewport);
+      window.removeEventListener("resize", measureViewport);
+    };
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -65,6 +128,11 @@ export function ScriptLibraryPage() {
   }, [draftQuery, query, setSearchParams]);
 
   useEffect(() => {
+    restoredScrollRef.current = false;
+    if (resultsViewportRef.current) resultsViewportRef.current.scrollTop = 0;
+  }, [query]);
+
+  useEffect(() => {
     if (!scripts.data || restoredScrollRef.current) return;
     restoredScrollRef.current = true;
     const stored = window.sessionStorage.getItem(SCROLL_STORAGE_KEY);
@@ -75,7 +143,11 @@ export function ScriptLibraryPage() {
         parsed.url === `${location.pathname}${location.search}` &&
         typeof parsed.y === "number"
       ) {
-        window.requestAnimationFrame(() => window.scrollTo(0, parsed.y ?? 0));
+        window.requestAnimationFrame(() => {
+          if (resultsViewportRef.current) {
+            resultsViewportRef.current.scrollTop = parsed.y ?? 0;
+          }
+        });
       }
     } catch {
       // Ignore stale or malformed browser state and show the page normally.
@@ -85,16 +157,14 @@ export function ScriptLibraryPage() {
 
   useEffect(() => {
     if (
-      scripts.data &&
-      offset > 0 &&
-      scripts.data.items.length === 0 &&
-      offset >= scripts.data.total
+      virtualEnd >= items.length - 2 &&
+      scripts.hasNextPage &&
+      !scripts.isFetchingNextPage &&
+      !scripts.isFetchNextPageError
     ) {
-      const next = new URLSearchParams(searchParams);
-      next.delete("offset");
-      setSearchParams(next, { replace: true });
+      void scripts.fetchNextPage();
     }
-  }, [offset, scripts.data, searchParams, setSearchParams]);
+  }, [items.length, scripts, virtualEnd]);
 
   function searchNow(event: FormEvent) {
     event.preventDefault();
@@ -110,20 +180,12 @@ export function ScriptLibraryPage() {
     searchInputRef.current?.focus();
   }
 
-  function goToOffset(nextOffset: number) {
-    const next = new URLSearchParams(searchParams);
-    if (nextOffset > 0) next.set("offset", String(nextOffset));
-    else next.delete("offset");
-    setSearchParams(next);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
   function rememberListPosition() {
     window.sessionStorage.setItem(
       SCROLL_STORAGE_KEY,
       JSON.stringify({
         url: `${location.pathname}${location.search}`,
-        y: window.scrollY,
+        y: resultsViewportRef.current?.scrollTop ?? 0,
       }),
     );
   }
@@ -131,17 +193,10 @@ export function ScriptLibraryPage() {
   async function createScript(title: string, body: string) {
     await api.createScript(title, body);
     setEditorOpen(false);
-    const next = new URLSearchParams(searchParams);
-    next.delete("offset");
-    setSearchParams(next, { replace: true });
+    if (resultsViewportRef.current) resultsViewportRef.current.scrollTop = 0;
     await queryClient.invalidateQueries({ queryKey: ["scripts"] });
   }
 
-  const result = scripts.data;
-  const start = result && result.total > 0 ? result.offset + 1 : 0;
-  const end = result ? Math.min(result.offset + result.items.length, result.total) : 0;
-  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
-  const totalPages = Math.max(1, Math.ceil((result?.total ?? 0) / PAGE_SIZE));
   const currentSearch = searchParams.toString();
 
   return (
@@ -199,10 +254,17 @@ export function ScriptLibraryPage() {
               {scripts.isPending
                 ? "正在读取脚本库…"
                 : query
-                  ? `“${query}”找到 ${result?.total ?? 0} 篇脚本`
-                  : `脚本库共 ${result?.total ?? 0} 篇`}
+                  ? `“${query}”找到 ${total} 篇脚本`
+                  : `脚本库共 ${total} 篇`}
             </span>
-            {scripts.isFetching && !scripts.isPending && (
+            {items.length > 0 && (
+              <small className="script-library-loaded-count">
+                已加载 {items.length} / {total}
+              </small>
+            )}
+            {scripts.isFetching &&
+              !scripts.isPending &&
+              !scripts.isFetchingNextPage && (
               <small>
                 <LoaderCircle className="spin" size={13} /> 正在更新
               </small>
@@ -210,47 +272,86 @@ export function ScriptLibraryPage() {
           </div>
         </section>
 
-        {scripts.isPending ? (
-          <section className="script-library-state" aria-live="polite">
-            <LoaderCircle className="spin" size={27} />
-            <h2>正在整理脚本…</h2>
-            <p>马上就好。</p>
-          </section>
-        ) : scripts.isError ? (
-          <section className="script-library-state error" role="alert">
-            <Inbox size={30} />
-            <h2>脚本暂时没有加载成功</h2>
-            <p>{scripts.error.message}</p>
-            <button type="button" onClick={() => void scripts.refetch()}>
-              重新加载
-            </button>
-          </section>
-        ) : !result?.items.length ? (
-          <section className="script-library-state">
-            <Inbox size={30} />
-            <h2>{query ? "没有找到匹配的脚本" : "脚本库还是空的"}</h2>
-            <p>
-              {query
-                ? "试试缩短关键词，或搜索脚本中的其他表达。"
-                : "添加第一篇脚本，让团队随时可以搜索和复用。"}
-            </p>
-            {query ? (
-              <button type="button" onClick={clearSearch}>
-                查看全部脚本
+        <section
+          ref={resultsViewportRef}
+          className="script-library-results-viewport"
+          aria-label="脚本搜索结果"
+        >
+          {scripts.isPending ? (
+            <div className="script-library-state" aria-live="polite">
+              <LoaderCircle className="spin" size={27} />
+              <h2>正在整理脚本…</h2>
+              <p>马上就好。</p>
+            </div>
+          ) : scripts.isError && !scripts.data ? (
+            <div className="script-library-state error" role="alert">
+              <Inbox size={30} />
+              <h2>脚本暂时没有加载成功</h2>
+              <p>{scripts.error.message}</p>
+              <button type="button" onClick={() => void scripts.refetch()}>
+                重新加载
               </button>
-            ) : (
-              <button type="button" onClick={() => setEditorOpen(true)}>
-                新增脚本
-              </button>
-            )}
-          </section>
-        ) : (
-          <>
-            <section
-              className="script-library-results"
-              aria-label="脚本搜索结果"
+            </div>
+          ) : !items.length ? (
+            <div className="script-library-state">
+              <Inbox size={30} />
+              <h2>{query ? "没有找到匹配的脚本" : "脚本库还是空的"}</h2>
+              <p>
+                {query
+                  ? "试试缩短关键词，或搜索脚本中的其他表达。"
+                  : "添加第一篇脚本，让团队随时可以搜索和复用。"}
+              </p>
+              {query ? (
+                <button type="button" onClick={clearSearch}>
+                  查看全部脚本
+                </button>
+              ) : (
+                <button type="button" onClick={() => setEditorOpen(true)}>
+                  新增脚本
+                </button>
+              )}
+            </div>
+          ) : (
+            <div
+              className="script-library-results-virtual"
+              style={{ height: virtualRowCount * rowHeight }}
             >
-              {result.items.map((script) => {
+              {virtualIndexes.map((virtualIndex) => {
+                const script = items[virtualIndex];
+                if (!script) {
+                  return (
+                    <div
+                      key="load-more"
+                      className="script-library-virtual-row"
+                      style={{
+                        height: rowHeight,
+                        transform: `translateY(${virtualIndex * rowHeight}px)`,
+                      }}
+                    >
+                      <div
+                        className="script-library-load-more"
+                        aria-live="polite"
+                      >
+                        {scripts.isFetchNextPageError ? (
+                          <>
+                            <span>后续脚本加载失败</span>
+                            <button
+                              type="button"
+                              onClick={() => void scripts.fetchNextPage()}
+                            >
+                              重新加载
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <LoaderCircle className="spin" size={17} />
+                            正在加载更多脚本…
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
                 const detailPath = `/script-library/${encodeURIComponent(script.id)}${
                   currentSearch ? `?${currentSearch}` : ""
                 }`;
@@ -265,83 +366,64 @@ export function ScriptLibraryPage() {
                         ? "正文命中"
                         : "";
                 return (
-                  <Link
+                  <div
                     key={script.id}
-                    to={detailPath}
-                    state={{
-                      from: `${location.pathname}${location.search}`,
+                    className="script-library-virtual-row"
+                    style={{
+                      height: rowHeight,
+                      transform: `translateY(${virtualIndex * rowHeight}px)`,
                     }}
-                    className="script-library-card"
-                    onClick={rememberListPosition}
                   >
-                    <div className="script-library-card-main">
-                      <div className="script-library-card-title">
-                        <h2 aria-label={script.title}>
-                          <HighlightedText text={script.title} query={query} />
-                        </h2>
-                        {query && matchLabel && (
-                          <span
-                            className={`script-library-match-tag ${
-                              titleMatched && bodyMatched
-                                ? "both"
-                                : bodyMatched
-                                  ? "body"
-                                  : "title"
-                            }`}
-                          >
-                            {matchLabel}
-                          </span>
-                        )}
+                    <Link
+                      to={detailPath}
+                      state={{
+                        from: `${location.pathname}${location.search}`,
+                      }}
+                      className="script-library-card"
+                      onClick={rememberListPosition}
+                    >
+                      <div className="script-library-card-main">
+                        <div className="script-library-card-title">
+                          <h2 aria-label={script.title}>
+                            <HighlightedText text={script.title} query={query} />
+                          </h2>
+                          {query && matchLabel && (
+                            <span
+                              className={`script-library-match-tag ${
+                                titleMatched && bodyMatched
+                                  ? "both"
+                                  : bodyMatched
+                                    ? "body"
+                                    : "title"
+                              }`}
+                            >
+                              {matchLabel}
+                            </span>
+                          )}
+                        </div>
+                        <p>
+                          <HighlightedText text={script.excerpt} query={query} />
+                        </p>
                       </div>
-                      <p>
-                        <HighlightedText text={script.excerpt} query={query} />
-                      </p>
-                    </div>
-                    <footer className="script-library-card-footer">
-                      <div>
-                        <span>{script.character_count.toLocaleString()} 字</span>
-                        <span>最后修改：{script.updated_by.username}</span>
-                        <time dateTime={script.updated_at}>
-                          {formatScriptDate(script.updated_at)}
-                        </time>
-                      </div>
-                      <strong>
-                        查看详情 <ArrowRight size={15} aria-hidden="true" />
-                      </strong>
-                    </footer>
-                  </Link>
+                      <footer className="script-library-card-footer">
+                        <div>
+                          <span>{script.character_count.toLocaleString()} 字</span>
+                          <span>最后修改：{script.updated_by.username}</span>
+                          <time dateTime={script.updated_at}>
+                            {formatScriptDate(script.updated_at)}
+                          </time>
+                        </div>
+                        <strong>
+                          查看详情 <ArrowRight size={15} aria-hidden="true" />
+                        </strong>
+                      </footer>
+                    </Link>
+                  </div>
                 );
               })}
-            </section>
-
-            <nav className="script-library-pagination" aria-label="搜索结果分页">
-              <span>
-                显示 {start}–{end}，共 {result.total} 篇
-              </span>
-              <div>
-                <button
-                  type="button"
-                  onClick={() => goToOffset(Math.max(0, offset - PAGE_SIZE))}
-                  disabled={offset === 0}
-                  aria-label="上一页"
-                >
-                  <ChevronLeft size={17} />
-                </button>
-                <span>
-                  {currentPage} / {totalPages}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => goToOffset(offset + PAGE_SIZE)}
-                  disabled={offset + PAGE_SIZE >= result.total}
-                  aria-label="下一页"
-                >
-                  <ChevronRight size={17} />
-                </button>
-              </div>
-            </nav>
-          </>
-        )}
+            </div>
+          )}
+        </section>
       </div>
 
       {editorOpen && (

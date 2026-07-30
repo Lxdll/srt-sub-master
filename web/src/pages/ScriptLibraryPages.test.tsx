@@ -69,9 +69,9 @@ describe("Script library pages", () => {
   beforeEach(() => {
     mocks.scripts.mockReset().mockResolvedValue({
       items: [listItem],
-      total: 21,
-      limit: 20,
-      offset: 20,
+      total: 1,
+      limit: 24,
+      offset: 0,
     });
     mocks.script.mockReset().mockResolvedValue(detail);
     mocks.createScript.mockReset().mockResolvedValue(detail);
@@ -90,26 +90,27 @@ describe("Script library pages", () => {
 
   afterEach(cleanup);
 
-  it("searches with the URL state, highlights results, and exposes pagination", async () => {
+  it("searches with the URL state and highlights virtualized results", async () => {
     renderWithClient(
       <Routes>
         <Route path="/script-library" element={<ScriptLibraryPage />} />
       </Routes>,
-      "/script-library?q=夏日&offset=20",
+      "/script-library?q=夏日",
     );
 
     expect(
       await screen.findByRole("heading", { name: "夏日新品开场" }),
     ).toBeTruthy();
-    expect(mocks.scripts).toHaveBeenCalledWith("夏日", 20, 20);
+    expect(mocks.scripts).toHaveBeenCalledWith("夏日", 24, 0);
     expect(document.querySelectorAll("mark").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("标题和正文命中")).toBeTruthy();
-    expect(screen.getByText("2 / 2")).toBeTruthy();
+    expect(screen.getByText("已加载 1 / 1")).toBeTruthy();
+    expect(screen.getByLabelText("脚本搜索结果")).toBeTruthy();
     expect(
       screen
         .getByRole("link", { name: /夏日新品开场/ })
         .getAttribute("href"),
-    ).toBe("/script-library/script-1?q=%E5%A4%8F%E6%97%A5&offset=20");
+    ).toBe("/script-library/script-1?q=%E5%A4%8F%E6%97%A5");
   });
 
   it("shows a body-match tag when only the script body matches", async () => {
@@ -138,12 +139,12 @@ describe("Script library pages", () => {
     expect(screen.queryByText("标题和正文命中")).toBeNull();
   });
 
-  it("debounces a new keyword and resets the result offset", async () => {
+  it("debounces a new keyword and starts loading from the beginning", async () => {
     renderWithClient(
       <Routes>
         <Route path="/script-library" element={<ScriptLibraryPage />} />
       </Routes>,
-      "/script-library?offset=20",
+      "/script-library",
     );
     await screen.findByRole("heading", { name: "夏日新品开场" });
     fireEvent.change(screen.getByLabelText("搜索标题或正文"), {
@@ -151,9 +152,61 @@ describe("Script library pages", () => {
     });
 
     await waitFor(
-      () => expect(mocks.scripts).toHaveBeenCalledWith("问题", 20, 0),
+      () => expect(mocks.scripts).toHaveBeenCalledWith("问题", 24, 0),
       { timeout: 1_000 },
     );
+  });
+
+  it("renders only visible rows and loads the next page near the end", async () => {
+    const firstPage = Array.from({ length: 24 }, (_, index) => ({
+      ...listItem,
+      id: `script-${index + 1}`,
+      title: `脚本 ${index + 1}`,
+    }));
+    const finalItem = {
+      ...listItem,
+      id: "script-25",
+      title: "脚本 25",
+    };
+    mocks.scripts.mockImplementation(
+      async (_query: string, _limit: number, offset: number) =>
+        offset === 0
+          ? {
+              items: firstPage,
+              total: 25,
+              limit: 24,
+              offset: 0,
+            }
+          : {
+              items: [finalItem],
+              total: 25,
+              limit: 24,
+              offset: 24,
+            },
+    );
+
+    renderWithClient(
+      <Routes>
+        <Route path="/script-library" element={<ScriptLibraryPage />} />
+      </Routes>,
+      "/script-library",
+    );
+
+    await screen.findByRole("heading", { name: "脚本 1" });
+    expect(document.querySelectorAll(".script-library-card").length).toBeLessThan(
+      firstPage.length,
+    );
+
+    const viewport = screen.getByLabelText("脚本搜索结果");
+    viewport.scrollTop = 4_200;
+    fireEvent.scroll(viewport);
+
+    await waitFor(() =>
+      expect(mocks.scripts).toHaveBeenCalledWith("", 24, 24),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "脚本 25" }),
+    ).toBeTruthy();
   });
 
   it("copies the raw title and body from the detail page", async () => {
