@@ -1,8 +1,11 @@
 import {
+  Activity,
+  BarChart3,
   CheckCircle2,
   Eye,
   EyeOff,
   KeyRound,
+  Link2,
   LogOut,
   Save,
   ShieldAlert,
@@ -12,7 +15,13 @@ import {
   X,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type FormEvent } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+  type FormEvent,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -22,6 +31,14 @@ import {
 } from "../lib/permissions";
 import type { AdminUser, PermissionKey } from "../types";
 import { ThemeToggle } from "../components/ThemeToggle";
+
+const AdminAnalytics = lazy(() =>
+  import("../components/AdminAnalytics").then((module) => ({
+    default: module.AdminAnalytics,
+  })),
+);
+
+type AdminTab = "visits" | "ip-links" | "actions" | "accounts";
 
 function formatCreatedAt(value: string) {
   const date = new Date(value);
@@ -130,6 +147,7 @@ export function AdminPage() {
     kind: "success" | "error";
     text: string;
   } | null>(null);
+  const [activeTab, setActiveTab] = useState<AdminTab>("visits");
   const users = useQuery({
     queryKey: ["admin-users"],
     queryFn: api.adminUsers,
@@ -267,7 +285,28 @@ export function AdminPage() {
       </header>
 
       <main className="admin-main">
-        <section className="admin-intro">
+        <nav className="admin-tabs" aria-label="管理后台栏目">
+          {[
+            { key: "visits" as const, label: "访问统计", icon: <BarChart3 size={16} /> },
+            { key: "ip-links" as const, label: "IP 关联", icon: <Link2 size={16} /> },
+            { key: "actions" as const, label: "操作记录", icon: <Activity size={16} /> },
+            { key: "accounts" as const, label: "账号管理", icon: <Users size={16} /> },
+          ].map((tab) => (
+            <button
+              type="button"
+              key={tab.key}
+              className={activeTab === tab.key ? "active" : ""}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+
+        {activeTab === "accounts" ? (
+          <>
+          <section className="admin-intro">
           <div>
             <span className="eyebrow">ACCOUNT &amp; PERMISSION ADMINISTRATION</span>
             <h1>账号与权限管理</h1>
@@ -278,9 +317,9 @@ export function AdminPage() {
             <span>访问账号</span>
             <strong>{regularUserCount}</strong>
           </div>
-        </section>
+          </section>
 
-        <div className="admin-grid">
+          <div className="admin-grid">
           <section className="admin-create-panel">
             <div className="admin-section-heading">
               <span>
@@ -417,7 +456,13 @@ export function AdminPage() {
               </div>
             )}
           </section>
-        </div>
+          </div>
+          </>
+        ) : (
+          <Suspense fallback={<div className="analytics-state">正在加载统计面板…</div>}>
+            <AdminAnalytics tab={activeTab} />
+          </Suspense>
+        )}
       </main>
 
       {passwordDialog && (

@@ -7,8 +7,9 @@ import json
 from pathlib import Path
 import secrets
 import sqlite3
+import time
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from uuid import uuid4
 
 from fastapi import (
@@ -16,6 +17,7 @@ from fastapi import (
     FastAPI,
     File,
     HTTPException,
+    Query,
     Request,
     Response,
     UploadFile,
@@ -29,6 +31,11 @@ from .cloud_transcription import (
     CloudTranscriptionError,
     cloud_transcription_service,
 )
+from .analytics import (
+    action_spec_for_request,
+    analytics_service,
+    set_action_metadata,
+)
 from .config import settings
 from .db import db_session, initialize_database, utc_now
 from .douyin import douyin_service
@@ -36,7 +43,10 @@ from douyin_engine import DouyinError, content_disposition
 from .hot_ranks import hot_rank_service
 from .prohibited_words import ProhibitedWordsError, prohibited_word_service
 from .schemas import (
+    ActionEventListResponse,
+    ActionOverviewResponse,
     AdminResetPasswordRequest,
+    AnalyticsOverviewResponse,
     AttachAssetRequest,
     ChangePasswordRequest,
     ClaimLocalDouyinTaskRequest,
@@ -50,7 +60,9 @@ from .schemas import (
     DouyinTranscriptionResponse,
     EditSegmentRequest,
     HotRanksResponse,
+    IpUserListResponse,
     LoginRequest,
+    PageViewRequest,
     PairDeviceRequest,
     ProhibitedWordsCheckRequest,
     ProhibitedWordsCheckResponse,
@@ -59,6 +71,7 @@ from .schemas import (
     TaskProgressRequest,
     TaskResultRequest,
     UpdateUserPermissionsRequest,
+    VisitListResponse,
     VerifyCommandRequest,
 )
 from .local_agent_transcription import (
@@ -128,10 +141,12 @@ def _bootstrap_admin() -> None:
 async def lifespan(_: FastAPI):
     initialize_database()
     _bootstrap_admin()
+    analytics_service.start()
     hot_rank_service.start()
     try:
         yield
     finally:
+        await analytics_service.close()
         await hot_rank_service.close()
         await douyin_service.close()
 
@@ -151,6 +166,73 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(script_library_router)
+
+
+@app.middleware("http")
+async def record_key_action(request: Request, call_next: Any) -> Response:
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        spec = action_spec_for_request(request)
+        if spec and not getattr(request.state, "analytics_skip_action", False):
+            user = getattr(request.state, "analytics_user", None)
+            metadata = {
+                **getattr(request.state, "analytics_metadata", {}),
+                "duration_ms": round((time.perf_counter() - started) * 1000),
+                "error_type": "internal_error",
+            }
+            analytics_service.record_action(
+                request,
+                action_key=spec.key,
+                outcome="failure",
+                http_status=500,
+                user_id=user["id"] if user else None,
+                resource_type=spec.resource_type,
+                resource_id=(
+                    getattr(request.state, "analytics_resource_id", None)
+                    or (
+                        request.path_params.get(spec.resource_param)
+                        if spec.resource_param
+                        else None
+                    )
+                ),
+                metadata=metadata,
+                link_user=not getattr(
+                    request.state, "analytics_skip_ip_user_link", False
+                ),
+            )
+        raise
+    spec = action_spec_for_request(request)
+    if spec and not getattr(request.state, "analytics_skip_action", False):
+        user = getattr(request.state, "analytics_user", None)
+        metadata = {
+            **getattr(request.state, "analytics_metadata", {}),
+            "duration_ms": round((time.perf_counter() - started) * 1000),
+        }
+        if response.status_code >= 400:
+            metadata["error_type"] = f"http_{response.status_code}"
+        analytics_service.record_action(
+            request,
+            action_key=spec.key,
+            outcome="success" if response.status_code < 400 else "failure",
+            http_status=response.status_code,
+            user_id=user["id"] if user else None,
+            resource_type=spec.resource_type,
+            resource_id=(
+                getattr(request.state, "analytics_resource_id", None)
+                or (
+                    request.path_params.get(spec.resource_param)
+                    if spec.resource_param
+                    else None
+                )
+            ),
+            metadata=metadata,
+            link_user=not getattr(
+                request.state, "analytics_skip_ip_user_link", False
+            ),
+        )
+    return response
 
 
 @app.post("/api/internal/fc/transcription-events", include_in_schema=False)
@@ -241,6 +323,124 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.post("/api/analytics/page-view", status_code=202)
+def record_page_view(
+    payload: PageViewRequest,
+    request: Request,
+) -> dict[str, str]:
+    request_host = (request.url.hostname or "").lower()
+    local_development_hosts = {
+        (urlparse(origin).hostname or "").lower()
+        for origin in settings.allowed_origins
+    }
+    host_is_allowed = request_host == analytics_service.public_host or (
+        not settings.cookie_secure
+        and request_host in local_development_hosts
+        and not request_host.startswith("admin.")
+    )
+    if not host_is_allowed:
+        raise HTTPException(status_code=403, detail="仅允许主站记录访问")
+    if "?" in payload.path or "#" in payload.path or payload.path.startswith("//"):
+        raise HTTPException(status_code=422, detail="页面路径无效")
+    origin = request.headers.get("origin")
+    if origin and (urlparse(origin).hostname or "").lower() != request_host:
+        raise HTTPException(status_code=403, detail="仅允许同源记录访问")
+    user = analytics_service.optional_user(request)
+    if user:
+        request.state.analytics_user = user
+    result = analytics_service.record_page_view(
+        request,
+        event_id=str(payload.event_id),
+        path=payload.path,
+        user_id=user["id"] if user else None,
+    )
+    if result == "rate_limited":
+        raise HTTPException(status_code=429, detail="访问上报过于频繁")
+    return {"status": result}
+
+
+@app.get(
+    "/api/admin/analytics/overview",
+    response_model=AnalyticsOverviewResponse,
+)
+def analytics_overview(
+    days: int = Query(default=30),
+    _: dict[str, Any] = Depends(admin_user),
+) -> dict[str, Any]:
+    try:
+        return analytics_service.overview(days)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get(
+    "/api/admin/analytics/visits",
+    response_model=VisitListResponse,
+)
+def analytics_visits(
+    days: int = Query(default=30),
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None, max_length=512),
+    _: dict[str, Any] = Depends(admin_user),
+) -> dict[str, Any]:
+    try:
+        return analytics_service.visits(days, limit, cursor)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get(
+    "/api/admin/analytics/ip-users",
+    response_model=IpUserListResponse,
+)
+def analytics_ip_users(
+    days: int = Query(default=30),
+    query: str = Query(default="", max_length=100),
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None, max_length=512),
+    _: dict[str, Any] = Depends(admin_user),
+) -> dict[str, Any]:
+    try:
+        return analytics_service.ip_users(days, limit, cursor, query.strip())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get(
+    "/api/admin/analytics/actions/overview",
+    response_model=ActionOverviewResponse,
+)
+def analytics_actions_overview(
+    days: int = Query(default=30),
+    _: dict[str, Any] = Depends(admin_user),
+) -> dict[str, Any]:
+    try:
+        return analytics_service.actions_overview(days)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get(
+    "/api/admin/analytics/actions",
+    response_model=ActionEventListResponse,
+)
+def analytics_actions(
+    days: int = Query(default=30),
+    user_id: str | None = Query(default=None, max_length=80),
+    action: str | None = Query(default=None, max_length=100),
+    outcome: str | None = Query(default=None, pattern="^(success|failure)$"),
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None, max_length=512),
+    _: dict[str, Any] = Depends(admin_user),
+) -> dict[str, Any]:
+    try:
+        return analytics_service.actions(
+            days, limit, cursor, user_id, action, outcome
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @app.get("/api/hot-ranks", response_model=HotRanksResponse)
 async def hot_ranks(
     response: Response,
@@ -294,6 +494,7 @@ async def parse_douyin(
     request: Request,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
+    set_action_metadata(request, input_characters=len(payload.text))
     require_csrf(request, user)
     ensure_permission(user, "douyin_download")
     try:
@@ -312,6 +513,12 @@ async def create_douyin_transcription(
     request: Request,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, str]:
+    set_action_metadata(
+        request,
+        backend=payload.backend,
+        model_id=payload.model_id,
+        input_characters=len(payload.text),
+    )
     require_csrf(request, user)
     ensure_permission(user, "douyin_download")
     ensure_permission(user, "subtitle_workspace")
@@ -340,6 +547,7 @@ async def create_douyin_transcription(
         raise _douyin_http_error(exc) from exc
     except TranscriptionError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    request.state.analytics_resource_id = task_id
     return {"task_id": task_id}
 
 
@@ -350,6 +558,7 @@ async def download_douyin(
     quality: str | None = None,
     user: dict[str, Any] = Depends(current_user),
 ) -> StreamingResponse:
+    set_action_metadata(request, quality=quality)
     ensure_permission(user, "douyin_download")
     try:
         stream = await douyin_service.open_download(
@@ -427,6 +636,7 @@ def add_custom_prohibited_word(
     request: Request,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
+    set_action_metadata(request, term_length=len(payload.term.strip()))
     require_csrf(request, user)
     ensure_permission(user, "prohibited_word_check")
     term = payload.term.strip()
@@ -456,6 +666,7 @@ def add_custom_prohibited_word(
             )
     except sqlite3.IntegrityError as exc:
         raise HTTPException(status_code=409, detail="该违禁词已存在") from exc
+    request.state.analytics_resource_id = word["id"]
     return word
 
 
@@ -490,6 +701,7 @@ async def check_prohibited_words(
     request: Request,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
+    set_action_metadata(request, input_characters=len(payload.text))
     require_csrf(request, user)
     ensure_permission(user, "prohibited_word_check")
     if not payload.text.strip():
@@ -522,6 +734,12 @@ async def analyze_script(
     request: Request,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
+    set_action_metadata(
+        request,
+        input_characters=len(payload.text),
+        platform=payload.platform,
+        target_duration_seconds=payload.target_duration_seconds,
+    )
     require_csrf(request, user)
     ensure_permission(user, "script_analysis")
     script = payload.text.strip()
@@ -549,6 +767,14 @@ async def stream_script_analysis(
     request: Request,
     user: dict[str, Any] = Depends(current_user),
 ) -> StreamingResponse:
+    request.state.analytics_skip_action = True
+    analysis_started = time.perf_counter()
+    set_action_metadata(
+        request,
+        input_characters=len(payload.text),
+        platform=payload.platform,
+        target_duration_seconds=payload.target_duration_seconds,
+    )
     require_csrf(request, user)
     ensure_permission(user, "script_analysis")
     script = payload.text.strip()
@@ -577,12 +803,59 @@ async def stream_script_analysis(
                 )
                 yield f"event: {event}\ndata: {encoded}\n\n"
         except ScriptAnalysisError as exc:
+            analytics_service.record_action(
+                request,
+                action_key="script_analysis.run",
+                outcome="failure",
+                http_status=exc.status_code,
+                user_id=user["id"],
+                metadata={
+                    **getattr(request.state, "analytics_metadata", {}),
+                    "duration_ms": round(
+                        (time.perf_counter() - analysis_started) * 1000
+                    ),
+                    "error_type": f"http_{exc.status_code}",
+                    "stream": True,
+                },
+            )
             encoded = json.dumps(
                 {"status_code": exc.status_code, "detail": str(exc)},
                 ensure_ascii=False,
                 separators=(",", ":"),
             )
             yield f"event: error\ndata: {encoded}\n\n"
+        except BaseException:
+            analytics_service.record_action(
+                request,
+                action_key="script_analysis.run",
+                outcome="failure",
+                http_status=499,
+                user_id=user["id"],
+                metadata={
+                    **getattr(request.state, "analytics_metadata", {}),
+                    "duration_ms": round(
+                        (time.perf_counter() - analysis_started) * 1000
+                    ),
+                    "error_type": "stream_interrupted",
+                    "stream": True,
+                },
+            )
+            raise
+        else:
+            analytics_service.record_action(
+                request,
+                action_key="script_analysis.run",
+                outcome="success",
+                http_status=200,
+                user_id=user["id"],
+                metadata={
+                    **getattr(request.state, "analytics_metadata", {}),
+                    "duration_ms": round(
+                        (time.perf_counter() - analysis_started) * 1000
+                    ),
+                    "stream": True,
+                },
+            )
 
     return StreamingResponse(
         events(),
@@ -595,13 +868,27 @@ async def stream_script_analysis(
 
 
 @app.post("/api/auth/login")
-def login(payload: LoginRequest, response: Response) -> dict[str, Any]:
+def login(
+    payload: LoginRequest,
+    request: Request,
+    response: Response,
+) -> dict[str, Any]:
     with db_session() as db:
         row = db.execute(
             "SELECT * FROM users WHERE username = ? COLLATE NOCASE",
             (payload.username,),
         ).fetchone()
     if not row or not verify_password(row["password_hash"], payload.password):
+        analytics_service.record_action(
+            request,
+            action_key="auth.login",
+            outcome="failure",
+            http_status=401,
+            metadata={
+                "attempted_username": payload.username[:80],
+                "error_type": "invalid_credentials",
+            },
+        )
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     session_token, csrf, expires = create_session(row["id"])
     response.set_cookie(
@@ -612,6 +899,17 @@ def login(payload: LoginRequest, response: Response) -> dict[str, Any]:
         samesite="lax",
         expires=datetime.fromisoformat(expires),
         path="/",
+    )
+    request.state.analytics_user = dict(row)
+    analytics_service.record_action(
+        request,
+        action_key="auth.login",
+        outcome="success",
+        http_status=200,
+        user_id=row["id"],
+        resource_type="user",
+        resource_id=row["id"],
+        login_success=True,
     )
     return {
         "user": _public_user(row),
@@ -648,6 +946,11 @@ def create_user(
     request: Request,
     user: dict[str, Any] = Depends(admin_user),
 ) -> dict[str, Any]:
+    set_action_metadata(
+        request,
+        is_admin=payload.is_admin,
+        permission_count=len(set(payload.permissions)),
+    )
     require_csrf(request, user)
     user_id = _id()
     try:
@@ -678,6 +981,7 @@ def create_user(
                 )
     except sqlite3.IntegrityError as exc:
         raise HTTPException(status_code=409, detail="用户名已存在") from exc
+    request.state.analytics_resource_id = user_id
     return {
         "id": user_id,
         "username": payload.username,
@@ -712,6 +1016,7 @@ def update_user_permissions(
     request: Request,
     user: dict[str, Any] = Depends(admin_user),
 ) -> dict[str, Any]:
+    set_action_metadata(request, permission_count=len(set(payload.permissions)))
     require_csrf(request, user)
     with db_session() as db:
         target = db.execute(
@@ -826,7 +1131,12 @@ def create_pair_code(
 
 
 @app.post("/api/agent/pair")
-def pair_device(payload: PairDeviceRequest) -> dict[str, Any]:
+def pair_device(payload: PairDeviceRequest, request: Request) -> dict[str, Any]:
+    set_action_metadata(
+        request,
+        platform=payload.platform,
+        model_count=len(payload.models),
+    )
     code_hash = hashlib.sha256(payload.code.upper().encode()).hexdigest()
     with db_session() as db:
         pair = db.execute(
@@ -858,6 +1168,9 @@ def pair_device(payload: PairDeviceRequest) -> dict[str, Any]:
             ),
         )
         db.execute("DELETE FROM pair_codes WHERE code_hash = ?", (code_hash,))
+    request.state.analytics_user = {"id": pair["user_id"]}
+    request.state.analytics_skip_ip_user_link = True
+    request.state.analytics_resource_id = device_id
     return {
         "device_id": device_id,
         "device_token": raw_token,
@@ -913,6 +1226,12 @@ def create_task(
     request: Request,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
+    set_action_metadata(
+        request,
+        backend="local_agent",
+        model_id=payload.model_id,
+        size_bytes=payload.size_bytes,
+    )
     require_csrf(request, user)
     ensure_permission(user, "subtitle_workspace")
     _device_for_user(payload.device_id, user["id"])
@@ -937,6 +1256,7 @@ def create_task(
                 now,
             ),
         )
+    request.state.analytics_resource_id = task_id
     return {
         "id": task_id,
         "command_token": sign_local_command(
@@ -992,6 +1312,7 @@ async def import_srt(
     if len(original_name) > 255:
         raise HTTPException(status_code=400, detail="SRT 文件名不能超过 255 个字符")
     content = await file.read(5 * 1024 * 1024 + 1)
+    set_action_metadata(request, size_bytes=len(content))
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="SRT 文件不能超过 5MB")
     try:
@@ -1051,6 +1372,8 @@ async def import_srt(
                 for ordinal, segment in enumerate(parsed)
             ],
         )
+    set_action_metadata(request, segment_count=len(parsed), duration_ms=duration_ms)
+    request.state.analytics_resource_id = task_id
     return {"id": task_id}
 
 
@@ -1150,6 +1473,7 @@ def edit_segment(
     request: Request,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
+    set_action_metadata(request, task_id=task_id, text_length=len(payload.text))
     require_csrf(request, user)
     ensure_permission(user, "subtitle_workspace")
     _task_for_user(task_id, user["id"])
@@ -1226,6 +1550,7 @@ def relink_task(
     request: Request,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, str]:
+    set_action_metadata(request, device_id=device_id)
     require_csrf(request, user)
     ensure_permission(user, "subtitle_workspace")
     _task_for_user(task_id, user["id"])
@@ -1248,8 +1573,10 @@ def _srt_time(milliseconds: int) -> str:
 def export_task(
     task_id: str,
     format: str,
+    request: Request,
     user: dict[str, Any] = Depends(current_user),
 ) -> Response:
+    set_action_metadata(request, format=format)
     ensure_permission(user, "subtitle_workspace")
     task = _task_for_user(task_id, user["id"])
     if format not in {"txt", "srt"}:

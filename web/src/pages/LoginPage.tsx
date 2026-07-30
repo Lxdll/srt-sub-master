@@ -118,6 +118,12 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
               {!busy && <ArrowRight size={18} />}
             </button>
           </form>
+          {!adminMode && (
+            <p className="login-analytics-notice">
+              为保障服务与统计使用情况，系统会记录 IP、近似归属地、访问页面和关键操作；
+              明细将在 90 天后删除。
+            </p>
+          )}
         </div>
       </section>
     </main>

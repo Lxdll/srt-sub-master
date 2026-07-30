@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from .analytics import set_action_metadata
 from .db import db_session, utc_now
 from .schemas import (
     ScriptCreateRequest,
@@ -179,6 +180,11 @@ def create_script(
     request: Request,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
+    set_action_metadata(
+        request,
+        title_length=len(payload.title.strip()),
+        body_characters=len(payload.body),
+    )
     require_csrf(request, user)
     ensure_permission(user, "script_library")
     title, body = _clean_values(payload.title, payload.body)
@@ -204,6 +210,7 @@ def create_script(
                 timestamp,
             ),
         )
+    request.state.analytics_resource_id = script_id
     return _detail(_script_or_404(script_id))
 
 
@@ -223,6 +230,17 @@ def update_script(
     request: Request,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
+    changed_fields = [
+        field
+        for field, value in (("title", payload.title), ("body", payload.body))
+        if value is not None
+    ]
+    set_action_metadata(
+        request,
+        changed_fields=changed_fields,
+        title_length=len(payload.title.strip()) if payload.title else None,
+        body_characters=len(payload.body) if payload.body is not None else None,
+    )
     require_csrf(request, user)
     ensure_permission(user, "script_library")
     _script_or_404(script_id)

@@ -58,6 +58,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics/page-view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Page View */
+        post: operations["record_page_view_api_analytics_page_view_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/analytics/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analytics Overview */
+        get: operations["analytics_overview_api_admin_analytics_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/analytics/visits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analytics Visits */
+        get: operations["analytics_visits_api_admin_analytics_visits_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/analytics/ip-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analytics Ip Users */
+        get: operations["analytics_ip_users_api_admin_analytics_ip_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/analytics/actions/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analytics Actions Overview */
+        get: operations["analytics_actions_overview_api_admin_analytics_actions_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/analytics/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analytics Actions */
+        get: operations["analytics_actions_api_admin_analytics_actions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hot-ranks": {
         parameters: {
             query?: never;
@@ -678,10 +780,159 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActionCountResponse */
+        ActionCountResponse: {
+            /** Action Key */
+            action_key: string;
+            /** Event Count */
+            event_count: number;
+        };
+        /** ActionDailyResponse */
+        ActionDailyResponse: {
+            /** Day */
+            day: string;
+            /** Success */
+            success: number;
+            /** Failure */
+            failure: number;
+        };
+        /** ActionEventListResponse */
+        ActionEventListResponse: {
+            /** Items */
+            items: components["schemas"]["ActionEventResponse"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** ActionEventResponse */
+        ActionEventResponse: {
+            /** Id */
+            id: string;
+            /** Occurred At */
+            occurred_at: string;
+            /** User Id */
+            user_id?: string | null;
+            /** Username */
+            username?: string | null;
+            /** Ip Address */
+            ip_address: string;
+            location: components["schemas"]["AnalyticsLocationResponse"];
+            /** Action Key */
+            action_key: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "success" | "failure";
+            /** Http Status */
+            http_status: number;
+            /** Resource Type */
+            resource_type?: string | null;
+            /** Resource Id */
+            resource_id?: string | null;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+        };
+        /** ActionOverviewResponse */
+        ActionOverviewResponse: {
+            /**
+             * Days
+             * @enum {integer}
+             */
+            days: 7 | 30 | 90;
+            summary: components["schemas"]["ActionSummaryResponse"];
+            /** Daily */
+            daily: components["schemas"]["ActionDailyResponse"][];
+            /** Top Actions */
+            top_actions: components["schemas"]["ActionCountResponse"][];
+        };
+        /** ActionSummaryResponse */
+        ActionSummaryResponse: {
+            /** Total */
+            total: number;
+            /** Success */
+            success: number;
+            /** Failure */
+            failure: number;
+            /** Active Users */
+            active_users: number;
+        };
         /** AdminResetPasswordRequest */
         AdminResetPasswordRequest: {
             /** Password */
             password: string;
+        };
+        /** AnalyticsDailyResponse */
+        AnalyticsDailyResponse: {
+            /** Day */
+            day: string;
+            /** Page Views */
+            page_views: number;
+            /** Unique Ips */
+            unique_ips: number;
+        };
+        /** AnalyticsLocationCountResponse */
+        AnalyticsLocationCountResponse: {
+            /** Country */
+            country?: string | null;
+            /** Province */
+            province?: string | null;
+            /** City */
+            city?: string | null;
+            /** Isp */
+            isp?: string | null;
+            /** Label */
+            label: string;
+            /** Page Views */
+            page_views: number;
+        };
+        /** AnalyticsLocationResponse */
+        AnalyticsLocationResponse: {
+            /** Country */
+            country?: string | null;
+            /** Province */
+            province?: string | null;
+            /** City */
+            city?: string | null;
+            /** Isp */
+            isp?: string | null;
+            /** Label */
+            label: string;
+        };
+        /** AnalyticsOverviewResponse */
+        AnalyticsOverviewResponse: {
+            /**
+             * Days
+             * @enum {integer}
+             */
+            days: 7 | 30 | 90;
+            /** From At */
+            from_at: string;
+            /** To At */
+            to_at: string;
+            /**
+             * Timezone
+             * @constant
+             */
+            timezone: "Asia/Shanghai";
+            summary: components["schemas"]["AnalyticsSummaryResponse"];
+            /** Daily */
+            daily: components["schemas"]["AnalyticsDailyResponse"][];
+            /** Locations */
+            locations: components["schemas"]["AnalyticsLocationCountResponse"][];
+            geo_status: components["schemas"]["GeoStatusResponse"];
+        };
+        /** AnalyticsSummaryResponse */
+        AnalyticsSummaryResponse: {
+            /** Today Page Views */
+            today_page_views: number;
+            /** Today Unique Ips */
+            today_unique_ips: number;
+            /** Period Page Views */
+            period_page_views: number;
+            /** Period Unique Ips */
+            period_unique_ips: number;
         };
         /** AttachAssetRequest */
         AttachAssetRequest: {
@@ -819,6 +1070,13 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** GeoStatusResponse */
+        GeoStatusResponse: {
+            /** Ipv4 */
+            ipv4: boolean;
+            /** Ipv6 */
+            ipv6: boolean;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -865,12 +1123,66 @@ export interface components {
             /** Platforms */
             platforms: components["schemas"]["HotRankPlatformResponse"][];
         };
+        /** IpUserAccountResponse */
+        IpUserAccountResponse: {
+            /** Id */
+            id: string;
+            /** Username */
+            username: string;
+            /** First Login At */
+            first_login_at?: string | null;
+            /** Last Login At */
+            last_login_at?: string | null;
+            /** Last Seen At */
+            last_seen_at: string;
+            /** Login Count */
+            login_count: number;
+            /** Page View Count */
+            page_view_count: number;
+            /** Action Count */
+            action_count: number;
+        };
+        /** IpUserLinkResponse */
+        IpUserLinkResponse: {
+            /** Ip Address */
+            ip_address: string;
+            location: components["schemas"]["AnalyticsLocationResponse"];
+            /** First Seen At */
+            first_seen_at: string;
+            /** Last Seen At */
+            last_seen_at: string;
+            /** Login Count */
+            login_count: number;
+            /** Page View Count */
+            page_view_count: number;
+            /** Action Count */
+            action_count: number;
+            /** Users */
+            users: components["schemas"]["IpUserAccountResponse"][];
+        };
+        /** IpUserListResponse */
+        IpUserListResponse: {
+            /** Items */
+            items: components["schemas"]["IpUserLinkResponse"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
         /** LoginRequest */
         LoginRequest: {
             /** Username */
             username: string;
             /** Password */
             password: string;
+        };
+        /** PageViewRequest */
+        PageViewRequest: {
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /** Path */
+            path: string;
         };
         /** PairDeviceRequest */
         PairDeviceRequest: {
@@ -1114,6 +1426,29 @@ export interface components {
             /** Task Id */
             task_id?: string | null;
         };
+        /** VisitListResponse */
+        VisitListResponse: {
+            /** Items */
+            items: components["schemas"]["VisitResponse"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** VisitResponse */
+        VisitResponse: {
+            /** Id */
+            id: string;
+            /** Occurred At */
+            occurred_at: string;
+            /** Ip Address */
+            ip_address: string;
+            location: components["schemas"]["AnalyticsLocationResponse"];
+            /** Path */
+            path: string;
+            /** User Id */
+            user_id?: string | null;
+            /** Username */
+            username?: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -1316,6 +1651,216 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    record_page_view_api_analytics_page_view_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PageViewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_overview_api_admin_analytics_overview_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsOverviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_visits_api_admin_analytics_visits_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_ip_users_api_admin_analytics_ip_users_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                query?: string;
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IpUserListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_actions_overview_api_admin_analytics_actions_overview_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOverviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_actions_api_admin_analytics_actions_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                user_id?: string | null;
+                action?: string | null;
+                outcome?: string | null;
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionEventListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

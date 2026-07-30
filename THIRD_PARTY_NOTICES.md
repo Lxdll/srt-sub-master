@@ -1,5 +1,14 @@
 # Third-party notices
 
+## ip2region
+
+IP geolocation uses the IPv4 and IPv6 xdb databases and Python client from
+`lionsoul2014/ip2region`, pinned at commit
+`cd40e3a1d532d645697999d646cf0e10481cef33`:
+<https://github.com/lionsoul2014/ip2region>.
+
+The project is dual-licensed under the Apache License 2.0 and MIT License.
+
 ## vikiboss/60s
 
 The self-hosted primary provider for daily hot rankings uses

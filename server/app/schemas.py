@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -281,3 +282,136 @@ class HotRankPlatformResponse(BaseModel):
 class HotRanksResponse(BaseModel):
     generated_at: str
     platforms: list[HotRankPlatformResponse]
+
+
+class PageViewRequest(BaseModel):
+    event_id: UUID
+    path: str = Field(min_length=1, max_length=256, pattern=r"^/")
+
+
+class AnalyticsLocationResponse(BaseModel):
+    country: str | None = None
+    province: str | None = None
+    city: str | None = None
+    isp: str | None = None
+    label: str
+
+
+class AnalyticsDailyResponse(BaseModel):
+    day: str
+    page_views: int = Field(ge=0)
+    unique_ips: int = Field(ge=0)
+
+
+class AnalyticsSummaryResponse(BaseModel):
+    today_page_views: int = Field(ge=0)
+    today_unique_ips: int = Field(ge=0)
+    period_page_views: int = Field(ge=0)
+    period_unique_ips: int = Field(ge=0)
+
+
+class AnalyticsLocationCountResponse(AnalyticsLocationResponse):
+    page_views: int = Field(ge=0)
+
+
+class GeoStatusResponse(BaseModel):
+    ipv4: bool
+    ipv6: bool
+
+
+class AnalyticsOverviewResponse(BaseModel):
+    days: Literal[7, 30, 90]
+    from_at: str
+    to_at: str
+    timezone: Literal["Asia/Shanghai"]
+    summary: AnalyticsSummaryResponse
+    daily: list[AnalyticsDailyResponse]
+    locations: list[AnalyticsLocationCountResponse]
+    geo_status: GeoStatusResponse
+
+
+class VisitResponse(BaseModel):
+    id: str
+    occurred_at: str
+    ip_address: str
+    location: AnalyticsLocationResponse
+    path: str
+    user_id: str | None = None
+    username: str | None = None
+
+
+class VisitListResponse(BaseModel):
+    items: list[VisitResponse]
+    next_cursor: str | None = None
+
+
+class IpUserAccountResponse(BaseModel):
+    id: str
+    username: str
+    first_login_at: str | None = None
+    last_login_at: str | None = None
+    last_seen_at: str
+    login_count: int = Field(ge=0)
+    page_view_count: int = Field(ge=0)
+    action_count: int = Field(ge=0)
+
+
+class IpUserLinkResponse(BaseModel):
+    ip_address: str
+    location: AnalyticsLocationResponse
+    first_seen_at: str
+    last_seen_at: str
+    login_count: int = Field(ge=0)
+    page_view_count: int = Field(ge=0)
+    action_count: int = Field(ge=0)
+    users: list[IpUserAccountResponse]
+
+
+class IpUserListResponse(BaseModel):
+    items: list[IpUserLinkResponse]
+    next_cursor: str | None = None
+
+
+class ActionSummaryResponse(BaseModel):
+    total: int = Field(ge=0)
+    success: int = Field(ge=0)
+    failure: int = Field(ge=0)
+    active_users: int = Field(ge=0)
+
+
+class ActionDailyResponse(BaseModel):
+    day: str
+    success: int = Field(ge=0)
+    failure: int = Field(ge=0)
+
+
+class ActionCountResponse(BaseModel):
+    action_key: str
+    event_count: int = Field(ge=0)
+
+
+class ActionOverviewResponse(BaseModel):
+    days: Literal[7, 30, 90]
+    summary: ActionSummaryResponse
+    daily: list[ActionDailyResponse]
+    top_actions: list[ActionCountResponse]
+
+
+class ActionEventResponse(BaseModel):
+    id: str
+    occurred_at: str
+    user_id: str | None = None
+    username: str | None = None
+    ip_address: str
+    location: AnalyticsLocationResponse
+    action_key: str
+    outcome: Literal["success", "failure"]
+    http_status: int
+    resource_type: str | None = None
+    resource_id: str | None = None
+    metadata: dict[str, Any]
+
+
+class ActionEventListResponse(BaseModel):
+    items: list[ActionEventResponse]
+    next_cursor: str | None = None

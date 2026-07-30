@@ -4,6 +4,7 @@ import {
   MultiFeatureRoute,
   ProtectedRoute,
 } from "./components/ProtectedRoute";
+import { PageViewTracker } from "./components/PageViewTracker";
 import { AdminPage } from "./pages/AdminPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DouyinPage } from "./pages/DouyinPage";
@@ -40,8 +41,10 @@ export function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
+    <>
+      <PageViewTracker />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
       <Route
         path="/"
         element={
@@ -125,7 +128,8 @@ export function App() {
         }
       />
       <Route path="/no-access" element={<Navigate to="/tools" replace />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }

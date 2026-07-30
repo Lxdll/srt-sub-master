@@ -1,6 +1,12 @@
 import type {
+  ActionEvent,
+  ActionOverview,
   AdminUser,
+  AnalyticsDays,
+  AnalyticsOverview,
+  AnalyticsVisit,
   AuthResponse,
+  CursorPage,
   Device,
   PermissionKey,
   Task,
@@ -8,6 +14,7 @@ import type {
   User,
   ScriptAnalysisResult,
   HotRanksResponse,
+  IpUserLink,
   ScriptLibraryDetail,
   ScriptLibraryListResponse,
 } from "../types";
@@ -53,6 +60,17 @@ async function request<T>(
 }
 
 export const api = {
+  recordPageView(eventId: string, path: string) {
+    return request<{ status: "accepted" | "duplicate" }>(
+      "/api/analytics/page-view",
+      {
+        method: "POST",
+        body: JSON.stringify({ event_id: eventId, path }),
+        keepalive: true,
+      },
+    );
+  },
+
   async login(username: string, password: string) {
     const result = await request<AuthResponse>("/api/auth/login", {
       method: "POST",
@@ -94,6 +112,57 @@ export const api = {
 
   adminUsers() {
     return request<AdminUser[]>("/api/admin/users");
+  },
+
+  analyticsOverview(days: AnalyticsDays) {
+    return request<AnalyticsOverview>(
+      `/api/admin/analytics/overview?days=${days}`,
+    );
+  },
+
+  analyticsVisits(days: AnalyticsDays, cursor?: string) {
+    const params = new URLSearchParams({ days: String(days), limit: "50" });
+    if (cursor) params.set("cursor", cursor);
+    return request<CursorPage<AnalyticsVisit>>(
+      `/api/admin/analytics/visits?${params.toString()}`,
+    );
+  },
+
+  analyticsIpUsers(
+    days: AnalyticsDays,
+    query = "",
+    cursor?: string,
+  ) {
+    const params = new URLSearchParams({ days: String(days), limit: "50" });
+    if (query) params.set("query", query);
+    if (cursor) params.set("cursor", cursor);
+    return request<CursorPage<IpUserLink>>(
+      `/api/admin/analytics/ip-users?${params.toString()}`,
+    );
+  },
+
+  analyticsActionsOverview(days: AnalyticsDays) {
+    return request<ActionOverview>(
+      `/api/admin/analytics/actions/overview?days=${days}`,
+    );
+  },
+
+  analyticsActions(
+    days: AnalyticsDays,
+    filters: {
+      user_id?: string;
+      action?: string;
+      outcome?: "success" | "failure";
+      cursor?: string;
+    } = {},
+  ) {
+    const params = new URLSearchParams({ days: String(days), limit: "50" });
+    for (const [key, value] of Object.entries(filters)) {
+      if (value) params.set(key, value);
+    }
+    return request<CursorPage<ActionEvent>>(
+      `/api/admin/analytics/actions?${params.toString()}`,
+    );
   },
 
   updateUserPermissions(userId: string, permissions: PermissionKey[]) {

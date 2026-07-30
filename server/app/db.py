@@ -191,6 +191,96 @@ CREATE TABLE IF NOT EXISTS hot_rank_snapshots (
     items_json TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS page_views (
+    id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL UNIQUE,
+    user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    ip_address TEXT NOT NULL,
+    country TEXT,
+    province TEXT,
+    city TEXT,
+    isp TEXT,
+    path TEXT NOT NULL,
+    occurred_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_page_views_occurred
+ON page_views(occurred_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_page_views_ip_occurred
+ON page_views(ip_address, occurred_at DESC);
+
+CREATE TABLE IF NOT EXISTS ip_user_links (
+    ip_address TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    country TEXT,
+    province TEXT,
+    city TEXT,
+    isp TEXT,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    first_login_at TEXT,
+    last_login_at TEXT,
+    login_count INTEGER NOT NULL DEFAULT 0,
+    page_view_count INTEGER NOT NULL DEFAULT 0,
+    action_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (ip_address, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ip_user_links_last_seen
+ON ip_user_links(last_seen_at DESC);
+
+CREATE TABLE IF NOT EXISTS action_events (
+    id TEXT PRIMARY KEY,
+    user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    ip_address TEXT NOT NULL,
+    country TEXT,
+    province TEXT,
+    city TEXT,
+    isp TEXT,
+    action_key TEXT NOT NULL,
+    outcome TEXT NOT NULL CHECK(outcome IN ('success', 'failure')),
+    http_status INTEGER NOT NULL,
+    resource_type TEXT,
+    resource_id TEXT,
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    occurred_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_action_events_occurred
+ON action_events(occurred_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_action_events_user_occurred
+ON action_events(user_id, occurred_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_action_events_action_occurred
+ON action_events(action_key, occurred_at DESC);
+
+CREATE TABLE IF NOT EXISTS analytics_daily (
+    day TEXT PRIMARY KEY,
+    page_views INTEGER NOT NULL DEFAULT 0,
+    unique_ips INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS analytics_daily_uniques (
+    day TEXT NOT NULL,
+    ip_hash TEXT NOT NULL,
+    PRIMARY KEY(day, ip_hash)
+);
+
+CREATE TABLE IF NOT EXISTS action_daily_stats (
+    day TEXT NOT NULL,
+    user_key TEXT NOT NULL,
+    user_id TEXT,
+    action_key TEXT NOT NULL,
+    outcome TEXT NOT NULL,
+    event_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY(day, user_key, action_key, outcome)
+);
+
+CREATE INDEX IF NOT EXISTS idx_action_daily_stats_day
+ON action_daily_stats(day);
 """
 
 

@@ -90,8 +90,13 @@ def _load_session(raw_token: str | None) -> dict[str, Any]:
     return result
 
 
-def current_user(srt_session: str | None = Cookie(default=None)) -> dict[str, Any]:
-    return _load_session(srt_session)
+def current_user(
+    request: Request,
+    srt_session: str | None = Cookie(default=None),
+) -> dict[str, Any]:
+    user = _load_session(srt_session)
+    request.state.analytics_user = user
+    return user
 
 
 def admin_user(user: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:

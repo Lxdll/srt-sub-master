@@ -65,6 +65,9 @@ class Settings:
     hot_rank_timeout_seconds: float
     hot_rank_refresh_seconds: int
     hot_rank_stale_seconds: int
+    analytics_retention_days: int
+    ip2region_v4_path: Path
+    ip2region_v6_path: Path
 
 
 def load_settings() -> Settings:
@@ -204,6 +207,21 @@ def load_settings() -> Settings:
         hot_rank_stale_seconds=max(
             1, int(os.getenv("SRT_HOT_RANK_STALE_SECONDS", "86400"))
         ),
+        analytics_retention_days=max(
+            1, int(os.getenv("SRT_ANALYTICS_RETENTION_DAYS", "90"))
+        ),
+        ip2region_v4_path=Path(
+            os.getenv(
+                "SRT_IP2REGION_V4_PATH",
+                project_root / "server" / "data" / "ip2region_v4.xdb",
+            )
+        ).expanduser(),
+        ip2region_v6_path=Path(
+            os.getenv(
+                "SRT_IP2REGION_V6_PATH",
+                project_root / "server" / "data" / "ip2region_v6.xdb",
+            )
+        ).expanduser(),
     )
 
 

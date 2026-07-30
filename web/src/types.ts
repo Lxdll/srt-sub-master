@@ -21,6 +21,94 @@ export interface AdminUser extends User {
   created_at: string;
 }
 
+export type AnalyticsDays = 7 | 30 | 90;
+
+export interface AnalyticsLocation {
+  country: string | null;
+  province: string | null;
+  city: string | null;
+  isp: string | null;
+  label: string;
+}
+
+export interface AnalyticsOverview {
+  days: AnalyticsDays;
+  from_at: string;
+  to_at: string;
+  timezone: "Asia/Shanghai";
+  summary: {
+    today_page_views: number;
+    today_unique_ips: number;
+    period_page_views: number;
+    period_unique_ips: number;
+  };
+  daily: Array<{ day: string; page_views: number; unique_ips: number }>;
+  locations: Array<AnalyticsLocation & { page_views: number }>;
+  geo_status: { ipv4: boolean; ipv6: boolean };
+}
+
+export interface AnalyticsVisit {
+  id: string;
+  occurred_at: string;
+  ip_address: string;
+  location: AnalyticsLocation;
+  path: string;
+  user_id: string | null;
+  username: string | null;
+}
+
+export interface IpUserLink {
+  ip_address: string;
+  location: AnalyticsLocation;
+  first_seen_at: string;
+  last_seen_at: string;
+  login_count: number;
+  page_view_count: number;
+  action_count: number;
+  users: Array<{
+    id: string;
+    username: string;
+    first_login_at: string | null;
+    last_login_at: string | null;
+    last_seen_at: string;
+    login_count: number;
+    page_view_count: number;
+    action_count: number;
+  }>;
+}
+
+export interface ActionOverview {
+  days: AnalyticsDays;
+  summary: {
+    total: number;
+    success: number;
+    failure: number;
+    active_users: number;
+  };
+  daily: Array<{ day: string; success: number; failure: number }>;
+  top_actions: Array<{ action_key: string; event_count: number }>;
+}
+
+export interface ActionEvent {
+  id: string;
+  occurred_at: string;
+  user_id: string | null;
+  username: string | null;
+  ip_address: string;
+  location: AnalyticsLocation;
+  action_key: string;
+  outcome: "success" | "failure";
+  http_status: number;
+  resource_type: string | null;
+  resource_id: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface CursorPage<T> {
+  items: T[];
+  next_cursor: string | null;
+}
+
 export interface AuthResponse {
   user: User;
   csrf_token: string;

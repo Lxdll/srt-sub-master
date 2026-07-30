@@ -351,6 +351,477 @@
         }
       }
     },
+    "/api/analytics/page-view": {
+      "post": {
+        "summary": "Record Page View",
+        "operationId": "record_page_view_api_analytics_page_view_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageViewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Record Page View Api Analytics Page View Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/analytics/overview": {
+      "get": {
+        "summary": "Analytics Overview",
+        "operationId": "analytics_overview_api_admin_analytics_overview_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "srt_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Srt Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsOverviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/analytics/visits": {
+      "get": {
+        "summary": "Analytics Visits",
+        "operationId": "analytics_visits_api_admin_analytics_visits_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "srt_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Srt Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/analytics/ip-users": {
+      "get": {
+        "summary": "Analytics Ip Users",
+        "operationId": "analytics_ip_users_api_admin_analytics_ip_users_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": "",
+              "title": "Query"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "srt_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Srt Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IpUserListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/analytics/actions/overview": {
+      "get": {
+        "summary": "Analytics Actions Overview",
+        "operationId": "analytics_actions_overview_api_admin_analytics_actions_overview_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "srt_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Srt Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionOverviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/analytics/actions": {
+      "get": {
+        "summary": "Analytics Actions",
+        "operationId": "analytics_actions_api_admin_analytics_actions_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            }
+          },
+          {
+            "name": "outcome",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(success|failure)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "srt_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Srt Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionEventListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/hot-ranks": {
       "get": {
         "summary": "Hot Ranks",
@@ -2685,6 +3156,243 @@
   },
   "components": {
     "schemas": {
+      "ActionCountResponse": {
+        "properties": {
+          "action_key": {
+            "type": "string",
+            "title": "Action Key"
+          },
+          "event_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Event Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action_key",
+          "event_count"
+        ],
+        "title": "ActionCountResponse"
+      },
+      "ActionDailyResponse": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "success": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Success"
+          },
+          "failure": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Failure"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "success",
+          "failure"
+        ],
+        "title": "ActionDailyResponse"
+      },
+      "ActionEventListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ActionEventResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ActionEventListResponse"
+      },
+      "ActionEventResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "occurred_at": {
+            "type": "string",
+            "title": "Occurred At"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "ip_address": {
+            "type": "string",
+            "title": "Ip Address"
+          },
+          "location": {
+            "$ref": "#/components/schemas/AnalyticsLocationResponse"
+          },
+          "action_key": {
+            "type": "string",
+            "title": "Action Key"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failure"
+            ],
+            "title": "Outcome"
+          },
+          "http_status": {
+            "type": "integer",
+            "title": "Http Status"
+          },
+          "resource_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Type"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "occurred_at",
+          "ip_address",
+          "location",
+          "action_key",
+          "outcome",
+          "http_status",
+          "metadata"
+        ],
+        "title": "ActionEventResponse"
+      },
+      "ActionOverviewResponse": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "enum": [
+              7,
+              30,
+              90
+            ],
+            "title": "Days"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ActionSummaryResponse"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/ActionDailyResponse"
+            },
+            "type": "array",
+            "title": "Daily"
+          },
+          "top_actions": {
+            "items": {
+              "$ref": "#/components/schemas/ActionCountResponse"
+            },
+            "type": "array",
+            "title": "Top Actions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "summary",
+          "daily",
+          "top_actions"
+        ],
+        "title": "ActionOverviewResponse"
+      },
+      "ActionSummaryResponse": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total"
+          },
+          "success": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Success"
+          },
+          "failure": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Failure"
+          },
+          "active_users": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Active Users"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "success",
+          "failure",
+          "active_users"
+        ],
+        "title": "ActionSummaryResponse"
+      },
       "AdminResetPasswordRequest": {
         "properties": {
           "password": {
@@ -2699,6 +3407,241 @@
           "password"
         ],
         "title": "AdminResetPasswordRequest"
+      },
+      "AnalyticsDailyResponse": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "page_views": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Page Views"
+          },
+          "unique_ips": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Unique Ips"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "page_views",
+          "unique_ips"
+        ],
+        "title": "AnalyticsDailyResponse"
+      },
+      "AnalyticsLocationCountResponse": {
+        "properties": {
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "province": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Province"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "isp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isp"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "page_views": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Page Views"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "page_views"
+        ],
+        "title": "AnalyticsLocationCountResponse"
+      },
+      "AnalyticsLocationResponse": {
+        "properties": {
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "province": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Province"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "isp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isp"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "AnalyticsLocationResponse"
+      },
+      "AnalyticsOverviewResponse": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "enum": [
+              7,
+              30,
+              90
+            ],
+            "title": "Days"
+          },
+          "from_at": {
+            "type": "string",
+            "title": "From At"
+          },
+          "to_at": {
+            "type": "string",
+            "title": "To At"
+          },
+          "timezone": {
+            "type": "string",
+            "const": "Asia/Shanghai",
+            "title": "Timezone"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AnalyticsSummaryResponse"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsDailyResponse"
+            },
+            "type": "array",
+            "title": "Daily"
+          },
+          "locations": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsLocationCountResponse"
+            },
+            "type": "array",
+            "title": "Locations"
+          },
+          "geo_status": {
+            "$ref": "#/components/schemas/GeoStatusResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "from_at",
+          "to_at",
+          "timezone",
+          "summary",
+          "daily",
+          "locations",
+          "geo_status"
+        ],
+        "title": "AnalyticsOverviewResponse"
+      },
+      "AnalyticsSummaryResponse": {
+        "properties": {
+          "today_page_views": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Today Page Views"
+          },
+          "today_unique_ips": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Today Unique Ips"
+          },
+          "period_page_views": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Period Page Views"
+          },
+          "period_unique_ips": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Period Unique Ips"
+          }
+        },
+        "type": "object",
+        "required": [
+          "today_page_views",
+          "today_unique_ips",
+          "period_page_views",
+          "period_unique_ips"
+        ],
+        "title": "AnalyticsSummaryResponse"
       },
       "AttachAssetRequest": {
         "properties": {
@@ -3115,6 +4058,24 @@
         ],
         "title": "EditSegmentRequest"
       },
+      "GeoStatusResponse": {
+        "properties": {
+          "ipv4": {
+            "type": "boolean",
+            "title": "Ipv4"
+          },
+          "ipv6": {
+            "type": "boolean",
+            "title": "Ipv6"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ipv4",
+          "ipv6"
+        ],
+        "title": "GeoStatusResponse"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -3265,6 +4226,149 @@
         ],
         "title": "HotRanksResponse"
       },
+      "IpUserAccountResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "first_login_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Login At"
+          },
+          "last_login_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login At"
+          },
+          "last_seen_at": {
+            "type": "string",
+            "title": "Last Seen At"
+          },
+          "login_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Login Count"
+          },
+          "page_view_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Page View Count"
+          },
+          "action_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Action Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "last_seen_at",
+          "login_count",
+          "page_view_count",
+          "action_count"
+        ],
+        "title": "IpUserAccountResponse"
+      },
+      "IpUserLinkResponse": {
+        "properties": {
+          "ip_address": {
+            "type": "string",
+            "title": "Ip Address"
+          },
+          "location": {
+            "$ref": "#/components/schemas/AnalyticsLocationResponse"
+          },
+          "first_seen_at": {
+            "type": "string",
+            "title": "First Seen At"
+          },
+          "last_seen_at": {
+            "type": "string",
+            "title": "Last Seen At"
+          },
+          "login_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Login Count"
+          },
+          "page_view_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Page View Count"
+          },
+          "action_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Action Count"
+          },
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/IpUserAccountResponse"
+            },
+            "type": "array",
+            "title": "Users"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ip_address",
+          "location",
+          "first_seen_at",
+          "last_seen_at",
+          "login_count",
+          "page_view_count",
+          "action_count",
+          "users"
+        ],
+        "title": "IpUserLinkResponse"
+      },
+      "IpUserListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IpUserLinkResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "IpUserListResponse"
+      },
       "LoginRequest": {
         "properties": {
           "username": {
@@ -3286,6 +4390,28 @@
           "password"
         ],
         "title": "LoginRequest"
+      },
+      "PageViewRequest": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Event Id"
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^/",
+            "title": "Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "path"
+        ],
+        "title": "PageViewRequest"
       },
       "PairDeviceRequest": {
         "properties": {
@@ -4066,6 +5192,87 @@
           "token"
         ],
         "title": "VerifyCommandRequest"
+      },
+      "VisitListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VisitResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "VisitListResponse"
+      },
+      "VisitResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "occurred_at": {
+            "type": "string",
+            "title": "Occurred At"
+          },
+          "ip_address": {
+            "type": "string",
+            "title": "Ip Address"
+          },
+          "location": {
+            "$ref": "#/components/schemas/AnalyticsLocationResponse"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "occurred_at",
+          "ip_address",
+          "location",
+          "path"
+        ],
+        "title": "VisitResponse"
       }
     }
   }
