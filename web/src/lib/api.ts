@@ -13,6 +13,10 @@ import type {
   TaskDetail,
   User,
   ScriptAnalysisResult,
+  ScriptFissionDirection,
+  ScriptFissionPlan,
+  ScriptFissionSourcePayload,
+  ScriptFissionVariant,
   HotRanksResponse,
   IpUserLink,
   ScriptLibraryDetail,
@@ -390,6 +394,33 @@ export const api = {
       throw new Error("脚本拆解连接意外中断，请重试。");
     }
     return result;
+  },
+
+  planScriptFission(
+    payload: ScriptFissionSourcePayload,
+    signal?: AbortSignal,
+  ) {
+    return request<ScriptFissionPlan>("/api/script-fission/plan", {
+      method: "POST",
+      csrf: true,
+      signal,
+      body: JSON.stringify(payload),
+    });
+  },
+
+  generateScriptFission(
+    payload: ScriptFissionSourcePayload & {
+      directions: ScriptFissionDirection[];
+      direction_id: string;
+    },
+    signal?: AbortSignal,
+  ) {
+    return request<ScriptFissionVariant>("/api/script-fission/generate", {
+      method: "POST",
+      csrf: true,
+      signal,
+      body: JSON.stringify(payload),
+    });
   },
 
   parseDouyin(text: string) {

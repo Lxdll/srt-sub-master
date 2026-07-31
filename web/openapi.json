@@ -1505,6 +1505,118 @@
         }
       }
     },
+    "/api/script-fission/plan": {
+      "post": {
+        "summary": "Plan Script Fission",
+        "operationId": "plan_script_fission_api_script_fission_plan_post",
+        "parameters": [
+          {
+            "name": "srt_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Srt Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScriptFissionPlanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptFissionPlanResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/script-fission/generate": {
+      "post": {
+        "summary": "Generate Script Fission",
+        "operationId": "generate_script_fission_api_script_fission_generate_post",
+        "parameters": [
+          {
+            "name": "srt_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Srt Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScriptFissionGenerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptFissionGenerateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/login": {
       "post": {
         "summary": "Login",
@@ -3783,6 +3895,7 @@
                 "douyin_download",
                 "prohibited_word_check",
                 "script_analysis",
+                "script_fission",
                 "script_library"
               ]
             },
@@ -4836,6 +4949,201 @@
         ],
         "title": "ScriptDetailResponse"
       },
+      "ScriptFissionDirection": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "angle": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Angle"
+          },
+          "hook_strategy": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Hook Strategy"
+          },
+          "structure_strategy": {
+            "type": "string",
+            "maxLength": 800,
+            "minLength": 1,
+            "title": "Structure Strategy"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "angle",
+          "hook_strategy",
+          "structure_strategy"
+        ],
+        "title": "ScriptFissionDirection"
+      },
+      "ScriptFissionGenerateRequest": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "source_script_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Script Id"
+          },
+          "requirements": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirements"
+          },
+          "directions": {
+            "items": {
+              "$ref": "#/components/schemas/ScriptFissionDirection"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Directions"
+          },
+          "direction_id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Direction Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "directions",
+          "direction_id"
+        ],
+        "title": "ScriptFissionGenerateRequest"
+      },
+      "ScriptFissionGenerateResponse": {
+        "properties": {
+          "direction_id": {
+            "type": "string",
+            "title": "Direction Id"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 30000,
+            "minLength": 1,
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "direction_id",
+          "title",
+          "body"
+        ],
+        "title": "ScriptFissionGenerateResponse"
+      },
+      "ScriptFissionPlanRequest": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "source_script_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Script Id"
+          },
+          "requirements": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirements"
+          }
+        },
+        "type": "object",
+        "title": "ScriptFissionPlanRequest"
+      },
+      "ScriptFissionPlanResponse": {
+        "properties": {
+          "directions": {
+            "items": {
+              "$ref": "#/components/schemas/ScriptFissionDirection"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Directions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "directions"
+        ],
+        "title": "ScriptFissionPlanResponse"
+      },
       "ScriptListItemResponse": {
         "properties": {
           "id": {
@@ -5123,6 +5431,7 @@
                 "douyin_download",
                 "prohibited_word_check",
                 "script_analysis",
+                "script_fission",
                 "script_library"
               ]
             },

@@ -97,6 +97,11 @@ def _script_or_404(script_id: str) -> sqlite3.Row:
     return row
 
 
+def script_source_or_404(script_id: str) -> tuple[str, str]:
+    row = _script_or_404(script_id)
+    return row["title"], row["body"]
+
+
 def _clean_values(
     title: str | None,
     body: str | None,

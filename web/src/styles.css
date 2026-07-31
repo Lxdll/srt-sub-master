@@ -1246,6 +1246,970 @@
   }
 }
 
+/* Script fission */
+.fission-page {
+  width: min(100% - 48px, 1560px);
+  margin: 0 auto;
+  padding: 34px 0 54px;
+}
+
+.fission-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.fission-hero > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.fission-hero-icon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 17px;
+  color: #fff;
+  background: linear-gradient(145deg, #f07a57, #cf4322);
+  box-shadow: 0 12px 28px rgba(207, 67, 34, 0.23);
+}
+
+.fission-hero .eyebrow,
+.fission-picker header small {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+}
+
+.fission-hero h1 {
+  margin: 3px 0 5px;
+  font-size: 32px;
+  line-height: 1.05;
+}
+
+.fission-hero p,
+.fission-panel-heading p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.fission-hero aside {
+  display: flex;
+  max-width: 390px;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 15px;
+  border: 1px solid #d8d4c5;
+  border-radius: 14px;
+  color: #5e5b50;
+  background: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.fission-hero aside svg {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.fission-workspace {
+  display: grid;
+  align-items: start;
+  grid-template-columns: minmax(340px, 430px) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.fission-source-panel,
+.fission-results-panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.fission-source-panel {
+  position: sticky;
+  top: 88px;
+  padding: 21px;
+}
+
+.fission-results-panel {
+  min-height: 680px;
+  padding: 22px;
+}
+
+.fission-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.fission-panel-heading > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 11px;
+  color: var(--accent);
+  background: #fae8e1;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.fission-panel-heading h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.fission-panel-heading p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.fission-source-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-bottom: 13px;
+  padding: 4px;
+  border-radius: 13px;
+  background: #efede6;
+}
+
+.fission-source-tabs button {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.fission-source-tabs button.active {
+  color: var(--ink);
+  background: var(--paper-strong);
+  box-shadow: 0 3px 12px rgba(35, 32, 24, 0.08);
+}
+
+.fission-source-tabs button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.fission-source-input,
+.fission-requirements,
+.fission-variant-editor label {
+  display: flex;
+  flex-direction: column;
+}
+
+.fission-source-input > span,
+.fission-requirements > span,
+.fission-variant-editor label > span {
+  margin-bottom: 7px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.fission-source-input textarea,
+.fission-requirements textarea,
+.fission-variant-editor input,
+.fission-variant-editor textarea,
+.fission-picker-search input {
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  outline: none;
+  color: var(--ink);
+  background: var(--paper-strong);
+  font: inherit;
+  line-height: 1.7;
+  transition: 150ms ease;
+}
+
+.fission-source-input textarea:focus,
+.fission-requirements textarea:focus,
+.fission-variant-editor input:focus,
+.fission-variant-editor textarea:focus,
+.fission-picker-search input:focus {
+  border-color: rgba(231, 91, 51, 0.7);
+  box-shadow: 0 0 0 3px rgba(231, 91, 51, 0.09);
+}
+
+.fission-source-input textarea {
+  min-height: 230px;
+  padding: 13px;
+  resize: vertical;
+}
+
+.fission-source-input > small,
+.fission-requirements > small,
+.fission-variant-editor label > small {
+  align-self: flex-end;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.fission-requirements {
+  margin-top: 17px;
+}
+
+.fission-requirements > span small {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.fission-requirements textarea {
+  min-height: 94px;
+  padding: 11px 12px;
+  resize: vertical;
+}
+
+.fission-library-source {
+  min-height: 273px;
+}
+
+.fission-library-empty {
+  display: flex;
+  min-height: 271px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px;
+  border: 1px dashed #d6d2c5;
+  border-radius: 15px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.fission-library-empty > svg {
+  color: var(--accent);
+}
+
+.fission-library-empty p {
+  max-width: 280px;
+  margin: 0 0 5px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.fission-library-empty button,
+.fission-library-source article button {
+  border: 0;
+  color: var(--accent-dark);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.fission-library-source article {
+  display: flex;
+  min-height: 273px;
+  flex-direction: column;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--paper-strong);
+}
+
+.fission-library-source article > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+}
+
+.fission-library-source h3 {
+  margin: 13px 0 8px;
+  font-size: 17px;
+}
+
+.fission-library-source article > p {
+  display: -webkit-box;
+  overflow: hidden;
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 7;
+}
+
+.fission-library-source footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+}
+
+.fission-permission-note {
+  margin: 11px 0 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  color: #6f6042;
+  background: #f6efdd;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.fission-inline-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 12px 0 0;
+  padding: 10px 11px;
+  border-radius: 10px;
+  color: #b33e20;
+  background: #fbe9e3;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.fission-inline-error svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.fission-source-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 17px;
+}
+
+.fission-source-actions > button {
+  display: flex;
+  min-height: 43px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.fission-generate-button {
+  border: 0;
+  color: #fff;
+  background: linear-gradient(135deg, #ec6b47, #c94321);
+  box-shadow: 0 8px 20px rgba(201, 67, 33, 0.2);
+}
+
+.fission-generate-button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+  opacity: 0.5;
+}
+
+.fission-cancel-button {
+  border: 1px solid #e2a28e;
+  color: #b84021;
+  background: #fff4f0;
+}
+
+.fission-source-actions > small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.fission-empty-state,
+.fission-planning-state {
+  display: flex;
+  min-height: 545px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 32px;
+  border: 1px dashed #d8d4c7;
+  border-radius: 17px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.fission-empty-state > svg {
+  margin-bottom: 9px;
+  color: var(--accent);
+}
+
+.fission-empty-state h3,
+.fission-planning-state h3 {
+  margin: 0 0 7px;
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.fission-empty-state p,
+.fission-planning-state p {
+  max-width: 380px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.fission-planning-state > span {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  margin-bottom: 14px;
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(145deg, #ee7855, #cb4624);
+}
+
+.fission-variant-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.fission-variant-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: var(--paper-strong);
+}
+
+.fission-variant-card > header {
+  display: grid;
+  min-height: 128px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 15px;
+  background: linear-gradient(145deg, #fff9f6, #f7f3ec);
+}
+
+.fission-variant-card > header > span {
+  align-self: start;
+  padding: 4px 7px;
+  border-radius: 7px;
+  color: #b84324;
+  background: #f9e2da;
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.fission-variant-card h3 {
+  margin: 1px 0 5px;
+  font-size: 15px;
+}
+
+.fission-variant-card header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.fission-variant-card > details {
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.fission-variant-card summary {
+  padding: 10px 14px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fission-variant-card dl {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0 14px 12px;
+}
+
+.fission-variant-card dt {
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.fission-variant-card dd {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.fission-variant-loading,
+.fission-variant-error {
+  display: flex;
+  min-height: 390px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.fission-variant-loading > svg {
+  margin-bottom: 11px;
+  color: var(--accent);
+}
+
+.fission-variant-loading strong,
+.fission-variant-error strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.fission-variant-loading p,
+.fission-variant-error p {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.fission-variant-error > svg {
+  margin-bottom: 10px;
+  color: var(--accent);
+}
+
+.fission-variant-error button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.fission-variant-editor {
+  padding: 13px;
+}
+
+.fission-variant-editor label + label {
+  margin-top: 11px;
+}
+
+.fission-variant-editor input,
+.fission-variant-editor textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  font-size: 11px;
+}
+
+.fission-variant-editor textarea {
+  min-height: 330px;
+  resize: vertical;
+  white-space: pre-wrap;
+}
+
+.fission-variant-editor footer {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.fission-variant-editor footer button,
+.fission-variant-editor footer a {
+  display: inline-flex;
+  min-height: 35px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.fission-variant-editor footer .primary {
+  border-color: var(--accent);
+  color: #fff;
+  background: var(--accent);
+}
+
+.fission-variant-editor footer button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.fission-picker-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(22, 21, 17, 0.48);
+  backdrop-filter: blur(5px);
+}
+
+.fission-picker {
+  display: flex;
+  width: min(100%, 720px);
+  max-height: min(820px, calc(100dvh - 40px));
+  overflow: hidden;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 21px;
+  background: var(--paper-strong);
+  box-shadow: 0 30px 90px rgba(25, 23, 18, 0.25);
+}
+
+.fission-picker > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 19px 20px 15px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.fission-picker > header > div {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.fission-picker > header > div > svg {
+  color: var(--accent);
+}
+
+.fission-picker h2 {
+  margin: 2px 0 0;
+  font-size: 19px;
+}
+
+.fission-picker > header > button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.fission-picker-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  margin: 15px 20px 10px;
+}
+
+.fission-picker-search > svg {
+  color: var(--muted);
+}
+
+.fission-picker-search input {
+  min-width: 0;
+  padding: 9px 11px;
+}
+
+.fission-picker-search button,
+.fission-picker > footer button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.fission-picker-results {
+  display: grid;
+  min-height: 270px;
+  overflow: auto;
+  gap: 8px;
+  padding: 8px 20px 14px;
+}
+
+.fission-picker-item {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px 16px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  color: var(--ink);
+  background: var(--paper);
+  text-align: left;
+  cursor: pointer;
+}
+
+.fission-picker-item:hover {
+  border-color: #c7b9ad;
+  background: #fff9f5;
+}
+
+.fission-picker-item > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fission-picker-item strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fission-picker-item small {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.fission-picker-item p {
+  display: -webkit-box;
+  overflow: hidden;
+  grid-column: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.fission-picker-item > span {
+  display: flex;
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent-dark);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.fission-picker-state {
+  display: flex;
+  min-height: 250px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.fission-picker-state.error {
+  color: var(--accent-dark);
+}
+
+.fission-picker-state button {
+  border: 0;
+  color: var(--accent-dark);
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.fission-picker > .fission-inline-error {
+  margin: 0 20px 10px;
+}
+
+.fission-picker > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 20px 17px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.fission-picker > footer > span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.fission-picker > footer > div {
+  display: flex;
+  gap: 7px;
+}
+
+.fission-picker > footer button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+[data-theme="dark"] .fission-hero aside,
+[data-theme="dark"] .fission-source-tabs {
+  border-color: #47443c;
+  color: #b6b5ad;
+  background: #292923;
+}
+
+[data-theme="dark"] .fission-panel-heading > span,
+[data-theme="dark"] .fission-variant-card > header > span,
+[data-theme="dark"] .fission-inline-error {
+  background: #3a241e;
+}
+
+[data-theme="dark"] .fission-permission-note {
+  color: #cab98f;
+  background: #332f23;
+}
+
+[data-theme="dark"] .fission-variant-card > header {
+  background: linear-gradient(145deg, #2b2622, #23231e);
+}
+
+[data-theme="dark"] .fission-picker-item:hover {
+  border-color: #655649;
+  background: #2e2824;
+}
+
+@media (max-width: 1260px) {
+  .fission-variant-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fission-variant-card > header {
+    min-height: 0;
+  }
+
+  .fission-variant-editor textarea {
+    min-height: 250px;
+  }
+}
+
+@media (max-width: 900px) {
+  .fission-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .fission-source-panel {
+    position: static;
+  }
+
+  .fission-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .fission-hero aside {
+    max-width: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .fission-page {
+    width: min(100% - 24px, 1560px);
+    padding: 25px 0 42px;
+  }
+
+  .fission-hero h1 {
+    font-size: 27px;
+  }
+
+  .fission-hero-icon {
+    width: 47px;
+    height: 47px;
+  }
+
+  .fission-source-panel,
+  .fission-results-panel {
+    padding: 15px;
+    border-radius: 17px;
+  }
+
+  .fission-source-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .fission-source-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .fission-source-actions > small {
+    text-align: right;
+  }
+
+  .fission-picker-backdrop {
+    padding: 0;
+  }
+
+  .fission-picker {
+    width: 100%;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  .fission-picker > footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .fission-picker > footer > div,
+  .fission-picker > footer button {
+    flex: 1 1 auto;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1968,6 +2932,7 @@
   border: 1px solid var(--line);
   color: var(--ink);
   background: var(--paper-strong);
+  text-decoration: none;
 }
 
 .script-library-secondary-button:hover:not(:disabled) {

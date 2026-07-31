@@ -14,6 +14,7 @@ import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProhibitedWordsPage } from "./pages/ProhibitedWordsPage";
 import { ScriptAnalysisPage } from "./pages/ScriptAnalysisPage";
+import { ScriptFissionPage } from "./pages/ScriptFissionPage";
 import { ScriptLibraryDetailPage } from "./pages/ScriptLibraryDetailPage";
 import { ScriptLibraryPage } from "./pages/ScriptLibraryPage";
 import { ToolsPage } from "./pages/ToolsPage";
@@ -108,6 +109,14 @@ export function App() {
         element={
           <FeatureRoute permission="script_analysis">
             <ScriptAnalysisPage />
+          </FeatureRoute>
+        }
+      />
+      <Route
+        path="/script-fission"
+        element={
+          <FeatureRoute permission="script_fission">
+            <ScriptFissionPage />
           </FeatureRoute>
         }
       />

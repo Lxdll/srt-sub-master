@@ -13,6 +13,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ScriptLibraryDetailPage } from "./ScriptLibraryDetailPage";
 import { ScriptLibraryPage } from "./ScriptLibraryPage";
+import type { User } from "../types";
 
 const mocks = vi.hoisted(() => ({
   scripts: vi.fn(),
@@ -21,6 +22,12 @@ const mocks = vi.hoisted(() => ({
   updateScript: vi.fn(),
   deleteScript: vi.fn(),
   writeText: vi.fn(),
+  user: {
+    id: "user-1",
+    username: "tester",
+    is_admin: false,
+    permissions: ["script_library"],
+  } as User,
 }));
 
 vi.mock("../components/AppShell", () => ({
@@ -35,6 +42,10 @@ vi.mock("../lib/api", () => ({
     updateScript: mocks.updateScript,
     deleteScript: mocks.deleteScript,
   },
+}));
+
+vi.mock("../lib/auth", () => ({
+  useAuth: () => ({ user: mocks.user }),
 }));
 
 const listItem = {
@@ -67,6 +78,7 @@ function renderWithClient(node: React.ReactNode, initialEntry: string) {
 
 describe("Script library pages", () => {
   beforeEach(() => {
+    mocks.user.permissions = ["script_library"];
     mocks.scripts.mockReset().mockResolvedValue({
       items: [listItem],
       total: 1,
@@ -210,6 +222,7 @@ describe("Script library pages", () => {
   });
 
   it("copies the raw title and body from the detail page", async () => {
+    mocks.user.permissions = ["script_library", "script_fission"];
     renderWithClient(
       <Routes>
         <Route
@@ -236,6 +249,11 @@ describe("Script library pages", () => {
         .getByRole("link", { name: "返回脚本库" })
         .getAttribute("href"),
     ).toBe("/script-library?q=%E5%A4%8F%E6%97%A5&offset=20");
+    expect(
+      screen
+        .getByRole("link", { name: "基于此脚本裂变" })
+        .getAttribute("href"),
+    ).toBe("/script-fission?scriptId=script-1");
   });
 
   it("edits through the shared form and confirms before deletion", async () => {

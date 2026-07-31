@@ -8,6 +8,7 @@ export type PermissionKey =
   | "douyin_download"
   | "prohibited_word_check"
   | "script_analysis"
+  | "script_fission"
   | "script_library";
 
 export interface User {
@@ -241,6 +242,21 @@ export type ProhibitedWordsCheckResult =
 
 export type ScriptAnalysisResult =
   components["schemas"]["ScriptAnalysisResponse"];
+
+export type ScriptFissionDirection =
+  components["schemas"]["ScriptFissionDirection"];
+
+export type ScriptFissionPlan =
+  components["schemas"]["ScriptFissionPlanResponse"];
+
+export type ScriptFissionVariant =
+  components["schemas"]["ScriptFissionGenerateResponse"];
+
+export type ScriptFissionSourcePayload = {
+  text?: string;
+  source_script_id?: string;
+  requirements?: string;
+};
 
 export type ScriptLibraryUser =
   components["schemas"]["ScriptAuthorResponse"];
