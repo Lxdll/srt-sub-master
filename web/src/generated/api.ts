@@ -348,6 +348,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/script-fission/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plan Script Fission */
+        post: operations["plan_script_fission_api_script_fission_plan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/script-fission/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Script Fission */
+        post: operations["generate_script_fission_api_script_fission_generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -988,7 +1022,7 @@ export interface components {
              */
             is_admin: boolean;
             /** Permissions */
-            permissions?: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check" | "script_analysis" | "script_library")[];
+            permissions?: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check" | "script_analysis" | "script_fission" | "script_library")[];
         };
         /** CustomProhibitedWordRequest */
         CustomProhibitedWordRequest: {
@@ -1326,6 +1360,55 @@ export interface components {
             /** Updated At */
             updated_at: string;
         };
+        /** ScriptFissionDirection */
+        ScriptFissionDirection: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Angle */
+            angle: string;
+            /** Hook Strategy */
+            hook_strategy: string;
+            /** Structure Strategy */
+            structure_strategy: string;
+        };
+        /** ScriptFissionGenerateRequest */
+        ScriptFissionGenerateRequest: {
+            /** Text */
+            text?: string | null;
+            /** Source Script Id */
+            source_script_id?: string | null;
+            /** Requirements */
+            requirements?: string | null;
+            /** Directions */
+            directions: components["schemas"]["ScriptFissionDirection"][];
+            /** Direction Id */
+            direction_id: string;
+        };
+        /** ScriptFissionGenerateResponse */
+        ScriptFissionGenerateResponse: {
+            /** Direction Id */
+            direction_id: string;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+        };
+        /** ScriptFissionPlanRequest */
+        ScriptFissionPlanRequest: {
+            /** Text */
+            text?: string | null;
+            /** Source Script Id */
+            source_script_id?: string | null;
+            /** Requirements */
+            requirements?: string | null;
+        };
+        /** ScriptFissionPlanResponse */
+        ScriptFissionPlanResponse: {
+            /** Directions */
+            directions: components["schemas"]["ScriptFissionDirection"][];
+        };
         /** ScriptListItemResponse */
         ScriptListItemResponse: {
             /** Id */
@@ -1408,7 +1491,7 @@ export interface components {
         /** UpdateUserPermissionsRequest */
         UpdateUserPermissionsRequest: {
             /** Permissions */
-            permissions: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check" | "script_analysis" | "script_library")[];
+            permissions: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check" | "script_analysis" | "script_fission" | "script_library")[];
         };
         /** ValidationError */
         ValidationError: {
@@ -2264,6 +2347,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    plan_script_fission_api_script_fission_plan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScriptFissionPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptFissionPlanResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_script_fission_api_script_fission_generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScriptFissionGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptFissionGenerateResponse"];
                 };
             };
             /** @description Validation Error */

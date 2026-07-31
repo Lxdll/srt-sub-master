@@ -59,6 +59,7 @@ class Settings:
     moderation_model: str
     moderation_timeout_seconds: float
     script_analysis_timeout_seconds: float
+    script_fission_timeout_seconds: float
     hot_rank_primary_base: str
     hot_rank_fallback_base: str
     hot_rank_fallback_api_key: str
@@ -188,6 +189,9 @@ def load_settings() -> Settings:
         ),
         script_analysis_timeout_seconds=float(
             os.getenv("SRT_SCRIPT_ANALYSIS_TIMEOUT_SECONDS", "150")
+        ),
+        script_fission_timeout_seconds=float(
+            os.getenv("SRT_SCRIPT_FISSION_TIMEOUT_SECONDS", "180")
         ),
         hot_rank_primary_base=os.getenv(
             "SRT_HOT_RANK_PRIMARY_BASE", "http://hot-api:4399"

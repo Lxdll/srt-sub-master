@@ -114,6 +114,8 @@ ACTION_ROUTES: dict[tuple[str, str], ActionSpec] = {
         "/api/prohibited-words/custom/{word_id}",
     ): ActionSpec("prohibited_words.custom.delete", "prohibited_word", "word_id"),
     ("POST", "/api/script-analysis/analyze"): ActionSpec("script_analysis.run"),
+    ("POST", "/api/script-fission/plan"): ActionSpec("script_fission.plan"),
+    ("POST", "/api/script-fission/generate"): ActionSpec("script_fission.generate"),
     ("POST", "/api/scripts"): ActionSpec("script_library.create", "script"),
     (
         "PATCH",

@@ -77,4 +77,14 @@ describe("ToolsPage", () => {
       screen.getByRole("link", { name: /开始使用/ }).getAttribute("href"),
     ).toBe("/script-library");
   });
+
+  it("shows script fission only with its independent permission", () => {
+    mocks.user!.permissions = ["script_fission"];
+    renderPage();
+    expect(screen.getByText("脚本裂变")).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /开始使用/ }).getAttribute("href"),
+    ).toBe("/script-fission");
+    expect(screen.queryByText("脚本拆解")).toBeNull();
+  });
 });

@@ -18,6 +18,7 @@ PermissionKey = Literal[
     "douyin_download",
     "prohibited_word_check",
     "script_analysis",
+    "script_fission",
     "script_library",
 ]
 
@@ -209,6 +210,64 @@ class ScriptAnalysisResponse(BaseModel):
     highlights: list[ScriptAnalysisHighlight]
     hooks: list[ScriptAnalysisHook]
     suggestions: list[ScriptAnalysisSuggestion]
+
+
+class ScriptFissionSourceRequest(BaseModel):
+    text: str | None = Field(default=None, min_length=1, max_length=30_000)
+    source_script_id: str | None = Field(default=None, min_length=1, max_length=64)
+    requirements: str | None = Field(default=None, max_length=1_000)
+
+    @model_validator(mode="after")
+    def require_one_source(self) -> "ScriptFissionSourceRequest":
+        if (self.text is None) == (self.source_script_id is None):
+            raise ValueError("粘贴脚本和共享脚本来源必须且只能提供一个")
+        return self
+
+
+class ScriptFissionDirection(BaseModel):
+    id: str = Field(min_length=1, max_length=80)
+    name: str = Field(min_length=1, max_length=100)
+    angle: str = Field(min_length=1, max_length=500)
+    hook_strategy: str = Field(min_length=1, max_length=500)
+    structure_strategy: str = Field(min_length=1, max_length=800)
+
+
+class ScriptFissionPlanRequest(ScriptFissionSourceRequest):
+    pass
+
+
+class ScriptFissionPlanResponse(BaseModel):
+    directions: list[ScriptFissionDirection] = Field(min_length=3, max_length=3)
+
+    @model_validator(mode="after")
+    def require_unique_directions(self) -> "ScriptFissionPlanResponse":
+        ids = [item.id.casefold() for item in self.directions]
+        names = [item.name.casefold() for item in self.directions]
+        if len(set(ids)) != 3 or len(set(names)) != 3:
+            raise ValueError("三个裂变方向必须互不重复")
+        return self
+
+
+class ScriptFissionGenerateRequest(ScriptFissionSourceRequest):
+    directions: list[ScriptFissionDirection] = Field(min_length=3, max_length=3)
+    direction_id: str = Field(min_length=1, max_length=80)
+
+    @model_validator(mode="after")
+    def validate_plan(self) -> "ScriptFissionGenerateRequest":
+        ids = [item.id.casefold() for item in self.directions]
+        names = [item.name.casefold() for item in self.directions]
+        angles = [item.angle.casefold() for item in self.directions]
+        if len(set(ids)) != 3 or len(set(names)) != 3 or len(set(angles)) != 3:
+            raise ValueError("三个裂变方向必须互不重复")
+        if self.direction_id not in [item.id for item in self.directions]:
+            raise ValueError("目标裂变方向不存在")
+        return self
+
+
+class ScriptFissionGenerateResponse(BaseModel):
+    direction_id: str
+    title: str = Field(min_length=1, max_length=255)
+    body: str = Field(min_length=1, max_length=30_000)
 
 
 class ScriptCreateRequest(BaseModel):

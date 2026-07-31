@@ -5,6 +5,7 @@ export const FEATURE_LABELS: Record<PermissionKey, string> = {
   douyin_download: "抖音下载",
   prohibited_word_check: "违禁词检测",
   script_analysis: "脚本拆解",
+  script_fission: "脚本裂变",
   script_library: "共享脚本库",
 };
 
@@ -18,6 +19,7 @@ export type ToolKey =
   | "subtitle_workspace"
   | "prohibited_word_check"
   | "script_analysis"
+  | "script_fission"
   | "script_library";
 
 export interface ToolDefinition {
@@ -83,6 +85,17 @@ export const TOOLS: ToolDefinition[] = [
     path: "/script-analysis",
     group: "copy",
     permissions: ["script_analysis"],
+  },
+  {
+    key: "script_fission",
+    title: "脚本裂变",
+    description: "基于一个好脚本，规划三个方向并生成三篇差异化新脚本。",
+    input: "文字或共享脚本",
+    output: "3 篇可编辑脚本",
+    path: "/script-fission",
+    group: "copy",
+    permissions: ["script_fission"],
+    featured: true,
   },
   {
     key: "script_library",

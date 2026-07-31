@@ -8,6 +8,7 @@ import {
   LibraryBig,
   ShieldAlert,
   Sparkles,
+  WandSparkles,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -27,6 +28,7 @@ const TOOL_ICONS: Record<ToolKey, LucideIcon> = {
   subtitle_workspace: Captions,
   prohibited_word_check: ShieldAlert,
   script_analysis: Clapperboard,
+  script_fission: WandSparkles,
   script_library: LibraryBig,
 };
 

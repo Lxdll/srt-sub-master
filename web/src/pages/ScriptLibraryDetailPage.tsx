@@ -10,6 +10,7 @@ import {
   Pencil,
   Trash2,
   UserRound,
+  WandSparkles,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -27,6 +28,8 @@ import {
   formatScriptDate,
 } from "../components/ScriptLibraryShared";
 import { api } from "../lib/api";
+import { useAuth } from "../lib/auth";
+import { hasPermission } from "../lib/permissions";
 
 function DeleteScriptDialog({
   title,
@@ -145,6 +148,7 @@ function DeleteScriptDialog({
 }
 
 export function ScriptLibraryDetailPage() {
+  const { user } = useAuth();
   const { scriptId = "" } = useParams();
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -245,6 +249,14 @@ export function ScriptLibraryDetailPage() {
                 </h1>
               </div>
               <div className="script-library-detail-actions">
+                {hasPermission(user, "script_fission") && (
+                  <Link
+                    className="script-library-secondary-button"
+                    to={`/script-fission?scriptId=${encodeURIComponent(scriptId)}`}
+                  >
+                    <WandSparkles size={16} /> 基于此脚本裂变
+                  </Link>
+                )}
                 <button
                   type="button"
                   className="script-library-secondary-button"

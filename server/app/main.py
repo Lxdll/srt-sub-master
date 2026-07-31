@@ -68,6 +68,10 @@ from .schemas import (
     ProhibitedWordsCheckResponse,
     ScriptAnalysisRequest,
     ScriptAnalysisResponse,
+    ScriptFissionGenerateRequest,
+    ScriptFissionGenerateResponse,
+    ScriptFissionPlanRequest,
+    ScriptFissionPlanResponse,
     TaskProgressRequest,
     TaskResultRequest,
     UpdateUserPermissionsRequest,
@@ -82,7 +86,8 @@ from .local_agent_transcription import (
     validate_local_douyin_result,
 )
 from .script_analysis import ScriptAnalysisError, script_analysis_service
-from .script_library import router as script_library_router
+from .script_fission import ScriptFissionError, script_fission_service
+from .script_library import router as script_library_router, script_source_or_404
 from .security import (
     FEATURE_PERMISSIONS,
     admin_user,
@@ -865,6 +870,77 @@ async def stream_script_analysis(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+def _script_fission_source(
+    payload: ScriptFissionPlanRequest | ScriptFissionGenerateRequest,
+    user: dict[str, Any],
+) -> tuple[str, str]:
+    if payload.source_script_id is not None:
+        ensure_permission(user, "script_library")
+        _, body = script_source_or_404(payload.source_script_id)
+        return body.strip(), "library"
+    script = (payload.text or "").strip()
+    if not script:
+        raise HTTPException(status_code=422, detail="来源脚本不能为空")
+    return script, "text"
+
+
+@app.post(
+    "/api/script-fission/plan",
+    response_model=ScriptFissionPlanResponse,
+)
+async def plan_script_fission(
+    payload: ScriptFissionPlanRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    require_csrf(request, user)
+    ensure_permission(user, "script_fission")
+    script, source_type = _script_fission_source(payload, user)
+    requirements = payload.requirements.strip() if payload.requirements else ""
+    set_action_metadata(
+        request,
+        source_type=source_type,
+        input_characters=len(script),
+        requirement_characters=len(requirements),
+    )
+    try:
+        return await script_fission_service.plan(script, requirements)
+    except ScriptFissionError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@app.post(
+    "/api/script-fission/generate",
+    response_model=ScriptFissionGenerateResponse,
+)
+async def generate_script_fission(
+    payload: ScriptFissionGenerateRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, str]:
+    require_csrf(request, user)
+    ensure_permission(user, "script_fission")
+    script, source_type = _script_fission_source(payload, user)
+    requirements = payload.requirements.strip() if payload.requirements else ""
+    directions = [item.model_dump() for item in payload.directions]
+    set_action_metadata(
+        request,
+        source_type=source_type,
+        input_characters=len(script),
+        requirement_characters=len(requirements),
+        direction_id=payload.direction_id,
+    )
+    try:
+        return await script_fission_service.generate(
+            script,
+            requirements,
+            directions,
+            payload.direction_id,
+        )
+    except ScriptFissionError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 
 @app.post("/api/auth/login")
