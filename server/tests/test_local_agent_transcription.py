@@ -210,7 +210,7 @@ async def test_local_claim_is_scoped_and_completion_is_idempotent(
         "duration_ms": 12_000,
         "size_bytes": 123_456,
         "segments": [
-            {"start_ms": 0, "end_ms": 2_000, "text": "第一句"},
+            {"start_ms": 0, "end_ms": 2_000, "text": "寶寶問軟件"},
             {"start_ms": 2_100, "end_ms": 4_000, "text": "第二句"},
         ],
     }
@@ -225,6 +225,7 @@ async def test_local_claim_is_scoped_and_completion_is_idempotent(
     detail = client.get(f"/api/tasks/{task_id}").json()
     assert detail["backend"] == "local_agent"
     assert detail["status"] == "ready"
+    assert detail["segments"][0]["original_text"] == "宝宝问软件"
     segment_id = detail["segments"][0]["id"]
     client.patch(
         f"/api/tasks/{task_id}/segments/{segment_id}",

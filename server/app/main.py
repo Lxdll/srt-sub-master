@@ -27,6 +27,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 
+from .chinese import to_simplified_chinese
 from .cloud_transcription import (
     CloudTranscriptionError,
     cloud_transcription_service,
@@ -1977,8 +1978,8 @@ def agent_task_result(
                     index,
                     segment.start_ms,
                     segment.end_ms,
-                    segment.text,
-                    segment.text,
+                    to_simplified_chinese(segment.text),
+                    to_simplified_chinese(segment.text),
                     now,
                 )
                 for index, segment in enumerate(payload.segments)

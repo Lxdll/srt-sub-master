@@ -4,6 +4,7 @@ fastapi==0.116.1
 httpx==0.28.1
 itsdangerous==2.2.0
 oss2==2.19.1
+opencc-python-reimplemented==0.1.7
 python-multipart==0.0.20
 py-ip2region==3.0.4
 uvicorn[standard]==0.35.0

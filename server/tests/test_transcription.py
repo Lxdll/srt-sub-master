@@ -202,7 +202,7 @@ async def test_worker_completes_job_and_cleans_intermediate_files(
     async def transcribe(_task_id: str, _audio: Path, output_base: Path):
         srt = output_base.with_suffix(".srt")
         srt.write_text(
-            "1\n00:00:00,000 --> 00:00:02,000\n第一句\n\n"
+            "1\n00:00:00,000 --> 00:00:02,000\n寶寶問軟件\n\n"
             "2\n00:00:02,100 --> 00:00:04,000\n第二句\n",
             encoding="utf-8",
         )
@@ -218,7 +218,7 @@ async def test_worker_completes_job_and_cleans_intermediate_files(
     assert payload["status"] == "ready"
     assert payload["media_available"] is True
     assert [item["edited_text"] for item in payload["segments"]] == [
-        "第一句",
+        "宝宝问软件",
         "第二句",
     ]
     root = settings.data_dir / "douyin-transcriptions" / task_id

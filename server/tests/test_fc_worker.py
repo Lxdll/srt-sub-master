@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from fc_worker.app import WorkerError, _source_allowed, _validate_payload
+from fc_worker.app import WorkerError, _source_allowed, _transcribe, _validate_payload
 
 
 def test_fc_worker_allows_only_expected_public_media_hosts():
@@ -42,3 +42,44 @@ def test_fc_worker_validates_task_identity_and_limits():
                 "max_duration_seconds": 1800,
             }
         )
+
+
+def test_fc_worker_forces_chinese_language(monkeypatch, tmp_path):
+    command: list[str] = []
+
+    class Process:
+        def __init__(self):
+            self.stdout = []
+
+        def wait(self):
+            return 0
+
+    def popen(received, **_kwargs):
+        command.extend(received)
+        output_index = received.index("--output-file") + 1
+        tmp_path.joinpath("transcript.srt").write_text("", encoding="utf-8")
+        assert received[output_index] == str(tmp_path / "transcript")
+        return Process()
+
+    monkeypatch.setattr("fc_worker.app.subprocess.Popen", popen)
+    settings = type(
+        "Settings",
+        (),
+        {
+            "whisper_path": "whisper-cli",
+            "model_path": "model.bin",
+            "threads": 4,
+            "vad_model_path": "vad.bin",
+        },
+    )()
+
+    _transcribe(
+        settings,
+        "b2e16f90-aac5-4372-9a65-c7ba22bbce10",
+        1,
+        tmp_path / "audio.wav",
+        tmp_path / "transcript",
+    )
+
+    language_index = command.index("--language")
+    assert command[language_index + 1] == "zh"

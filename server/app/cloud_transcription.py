@@ -11,6 +11,7 @@ from io import BytesIO
 from typing import Any
 from uuid import uuid4
 
+from .chinese import to_simplified_chinese
 from .config import settings
 from .db import db_session, utc_now
 
@@ -376,7 +377,9 @@ class CloudTranscriptionService:
                 or not text.strip()
             ):
                 raise CloudTranscriptionError("FC 字幕段格式无效。")
-            normalized.append((start_ms, end_ms, text.strip()))
+            normalized.append(
+                (start_ms, end_ms, to_simplified_chinese(text.strip()))
+            )
 
         media_bytes = result.get("media_bytes")
         duration_ms = result.get("duration_ms")

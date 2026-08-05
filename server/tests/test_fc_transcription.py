@@ -75,7 +75,7 @@ def test_fc_callback_is_authenticated_idempotent_and_completes_task(
         "duration_ms": 4000,
         "sha256": "a" * 64,
         "segments": [
-            {"start_ms": 0, "end_ms": 1900, "text": "第一句"},
+            {"start_ms": 0, "end_ms": 1900, "text": "寶寶問軟件"},
             {"start_ms": 2000, "end_ms": 4000, "text": "second"},
         ],
     }
@@ -114,7 +114,7 @@ def test_fc_callback_is_authenticated_idempotent_and_completes_task(
     detail = client.get(f"/api/tasks/{task_id}").json()
     assert detail["status"] == "ready"
     assert [segment["edited_text"] for segment in detail["segments"]] == [
-        "第一句",
+        "宝宝问软件",
         "second",
     ]
     assert detail["media_available"] is True

@@ -1,31 +1,31 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime, timedelta
 import fcntl
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import shutil
 import signal
 import sqlite3
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 from uuid import uuid4
 
 from douyin_engine import DouyinError, ParseResult, Quality, build_download_filename
 
-from .config import settings
+from .chinese import to_simplified_chinese
 from .cloud_transcription import (
     CloudTranscriptionError,
     cloud_transcription_service,
 )
+from .config import settings
 from .db import db_session, initialize_database, utc_now
 from .douyin import douyin_service
 from .srt import SrtError, parse_srt
-
 
 ACTIVE_STATUSES = ("queued", "downloading", "transcribing")
 MODEL_ID = "whisper-small-q5_1"
@@ -870,7 +870,7 @@ class TranscriptionWorker:
             "--threads",
             str(settings.transcription_threads),
             "--language",
-            "auto",
+            "zh",
             "--no-gpu",
             "--vad",
             "--vad-model",
@@ -994,6 +994,8 @@ class TranscriptionWorker:
                 segments = parse_srt(srt_path.read_text(encoding="utf-8-sig"))
             except (OSError, UnicodeDecodeError, SrtError) as exc:
                 raise TranscriptionError("识别结果无法转换为字幕。") from exc
+            for segment in segments:
+                segment["text"] = to_simplified_chinese(segment["text"])
             if not segments:
                 raise TranscriptionError("视频中没有识别到可用的说话内容。")
             self._complete(task_id, media, media_bytes, duration_ms, segments)

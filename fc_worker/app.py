@@ -20,6 +20,7 @@ import httpx
 import oss2
 from fastapi import FastAPI, HTTPException, Request
 
+from server.app.chinese import to_simplified_chinese
 from server.app.srt import SrtError, parse_srt
 
 MEDIA_HOST_SUFFIXES = (
@@ -414,7 +415,7 @@ def _transcribe(
         "--threads",
         str(settings.threads),
         "--language",
-        "auto",
+        "zh",
         "--no-gpu",
         "--vad",
         "--vad-model",
@@ -547,6 +548,8 @@ def process(payload: dict[str, Any]) -> dict[str, Any]:
             segments = parse_srt(srt_path.read_text(encoding="utf-8-sig"))
         except (OSError, UnicodeDecodeError, SrtError) as exc:
             raise WorkerError("识别结果无法转换为字幕。") from exc
+        for segment in segments:
+            segment["text"] = to_simplified_chinese(segment["text"])
         if not segments:
             raise WorkerError("视频中没有识别到可用的说话内容。")
 
