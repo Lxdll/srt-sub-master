@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -14,6 +15,7 @@ from douyin_engine import (
     ParseResult,
     Quality,
     SelfHostedProvider,
+    SharePageProvider,
     TicketStore,
     build_download_filename,
     extract_aweme_id,
@@ -21,7 +23,6 @@ from douyin_engine import (
 )
 from server.app.douyin import douyin_service
 from server.tests.conftest import login
-
 
 VIDEO_URL = "https://www.douyin.com/video/7372484719365098803"
 CDN_URL = "https://v5-se.douyinvod.com/video/test.mp4"
@@ -113,6 +114,66 @@ async def test_self_hosted_provider_normalizes_quality():
     assert result.title == "测试视频"
     assert result.qualities[0].id == "1080p"
     assert result.qualities[0].estimated_bytes == 3_000_000
+
+
+@pytest.mark.asyncio
+async def test_share_page_provider_uses_official_server_rendered_data():
+    watermarked = (
+        "https://aweme.snssdk.com/aweme/v1/playwm/"
+        "?ratio=720p&video_id=authorized-test"
+    )
+    router_data = {
+        "loaderData": {
+            "video_(id)/page": {
+                "videoInfoRes": {
+                    "item_list": [
+                        {
+                            "aweme_id": "7372484719365098803",
+                            "desc": "官方分享页视频",
+                            "author": {"nickname": "官方作者"},
+                            "video": {
+                                "duration": 12_300,
+                                "width": 1080,
+                                "height": 1920,
+                                "cover": {"url_list": [
+                                    "https://p3.douyinpic.com/test.webp"
+                                ]},
+                                "play_addr": {
+                                    "data_size": 3_000_000,
+                                    "url_list": [watermarked],
+                                },
+                            },
+                        }
+                    ]
+                }
+            }
+        }
+    }
+    html = (
+        "<html><script>window._ROUTER_DATA = "
+        + json.dumps(router_data)
+        + "</script></html>"
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.host == "www.iesdouyin.com"
+        assert request.url.path == "/share/video/7372484719365098803/"
+        assert "Mobile" in request.headers["User-Agent"]
+        return httpx.Response(200, text=html)
+
+    provider = SharePageProvider(transport=httpx.MockTransport(handler))
+    result = await provider.parse(VIDEO_URL, "7372484719365098803")
+
+    assert result.provider == "share_page"
+    assert result.title == "官方分享页视频"
+    assert result.author == "官方作者"
+    assert result.duration_ms == 12_300
+    assert result.qualities[0].source_urls == (
+        (
+            "https://aweme.snssdk.com/aweme/v1/play/"
+            "?ratio=720p&video_id=authorized-test"
+        ),
+    )
 
 
 @pytest.mark.asyncio

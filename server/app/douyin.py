@@ -14,6 +14,7 @@ from douyin_engine import (
     ParseResult,
     Quality,
     SelfHostedProvider,
+    SharePageProvider,
     TicketRecord,
     TicketStore,
     build_download_filename,
@@ -66,7 +67,10 @@ class DouyinService:
             cookie_file=settings.douyin_cookie_file,
         )
         self.bhwa = BhwaProvider(settings.bhwa_api_base)
-        self.engine = DouyinEngine([self.self_hosted, self.bhwa])
+        self.share_page = SharePageProvider()
+        self.engine = DouyinEngine(
+            [self.self_hosted, self.share_page, self.bhwa]
+        )
         self.tickets = TicketStore(ttl_seconds=600)
         self.rate_limiter = UserRateLimiter(limit=10, window_seconds=60)
         self._download_slots = asyncio.Semaphore(4)

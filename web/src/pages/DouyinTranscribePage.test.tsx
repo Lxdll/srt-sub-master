@@ -7,7 +7,6 @@ import { DouyinTranscribePage } from "./DouyinTranscribePage";
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
-  health: vi.fn(),
   navigate: vi.fn(),
 }));
 
@@ -18,12 +17,6 @@ vi.mock("../components/AppShell", () => ({
 vi.mock("../lib/api", () => ({
   api: {
     createDouyinTranscription: mocks.create,
-  },
-}));
-
-vi.mock("../lib/douyin-agent", () => ({
-  douyinAgent: {
-    health: mocks.health,
   },
 }));
 
@@ -43,13 +36,6 @@ vi.mock("react-router-dom", async (importOriginal) => {
 describe("DouyinTranscribePage", () => {
   beforeEach(() => {
     mocks.create.mockReset().mockResolvedValue({ task_id: "task-1" });
-    mocks.health.mockReset().mockResolvedValue({
-      status: "ok",
-      paired: true,
-      device_id: "device-1",
-      version: "0.1.0",
-      douyin: true,
-    });
     mocks.navigate.mockReset();
   });
 
@@ -60,7 +46,8 @@ describe("DouyinTranscribePage", () => {
   it("hides local transcription and creates a server transcription", async () => {
     render(<DouyinTranscribePage />);
     expect(screen.queryByText(/本机转写/)).toBeNull();
-    expect(await screen.findByText("当前状态：本机组件已连接")).toBeTruthy();
+    expect(screen.getByText("当前状态：Linux 服务器转写")).toBeTruthy();
+    expect(screen.queryByText(/本机组件未连接/)).toBeNull();
     fireEvent.click(
       screen.getByRole("button", { name: "用服务器转成文案" }),
     );
@@ -72,16 +59,6 @@ describe("DouyinTranscribePage", () => {
       ),
     );
     expect(mocks.navigate).toHaveBeenCalledWith("/tasks/task-1");
-  });
-
-  it("keeps server transcription available when the local component is offline", async () => {
-    mocks.health.mockRejectedValue(new Error("offline"));
-    render(<DouyinTranscribePage />);
-
-    expect(await screen.findByText("当前状态：本机组件未连接")).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "用服务器转成文案" }),
-    ).not.toHaveProperty("disabled", true);
   });
 
   it("keeps the user on the page when task creation fails", async () => {

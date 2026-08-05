@@ -1,21 +1,20 @@
 from __future__ import annotations
 
 import asyncio
-from collections import defaultdict, deque
-from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
 import json
-from pathlib import Path
 import re
 import secrets
 import time
+from collections import defaultdict, deque
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import parse_qs, quote, urlencode, urljoin, urlparse
 
 import httpx
 
 from .xbogus import XBogus
-
 
 SHARE_HOSTS = {
     "douyin.com",
@@ -475,6 +474,161 @@ class SelfHostedProvider:
             cover_url=_cover_url(detail),
             duration_ms=int((detail.get("video") or {}).get("duration") or 0) or None,
             qualities=qualities,
+            provider=self.name,
+        )
+
+
+class SharePageProvider:
+    """Parse Douyin's server-rendered mobile share page without a third party."""
+
+    name = "share_page"
+    SHARE_BASE = "https://www.iesdouyin.com/share/video"
+    MOBILE_USER_AGENT = (
+        "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 "
+        "Chrome/131.0.0.0 Mobile Safari/537.36"
+    )
+
+    def __init__(
+        self,
+        *,
+        timeout: float = 20,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        self.timeout = timeout
+        self.transport = transport
+
+    @staticmethod
+    def _router_data(html: str) -> dict[str, Any]:
+        marker = "window._ROUTER_DATA = "
+        start = html.find(marker)
+        if start < 0:
+            raise DouyinError(
+                "抖音官方分享页没有返回作品数据。",
+                code="SHARE_PAGE_EMPTY",
+                status_code=503,
+            )
+        start += len(marker)
+        end = html.find("</script>", start)
+        if end < 0:
+            raise DouyinError(
+                "抖音官方分享页返回了无法识别的数据。",
+                code="SHARE_PAGE_INVALID",
+                status_code=503,
+            )
+        try:
+            payload = json.loads(html[start:end].strip().removesuffix(";"))
+        except json.JSONDecodeError as exc:
+            raise DouyinError(
+                "抖音官方分享页返回了无法识别的数据。",
+                code="SHARE_PAGE_INVALID",
+                status_code=503,
+            ) from exc
+        if not isinstance(payload, dict):
+            raise DouyinError(
+                "抖音官方分享页返回了无法识别的数据。",
+                code="SHARE_PAGE_INVALID",
+                status_code=503,
+            )
+        return payload
+
+    @staticmethod
+    def _detail(payload: dict[str, Any]) -> dict[str, Any]:
+        loader_data = payload.get("loaderData")
+        if not isinstance(loader_data, dict):
+            raise DouyinError(
+                "作品不存在、不可见或已删除。",
+                code="VIDEO_NOT_FOUND",
+            )
+        for route_data in loader_data.values():
+            if not isinstance(route_data, dict):
+                continue
+            video_info = route_data.get("videoInfoRes")
+            if not isinstance(video_info, dict):
+                continue
+            items = video_info.get("item_list")
+            if isinstance(items, list) and items and isinstance(items[0], dict):
+                return items[0]
+        raise DouyinError(
+            "作品不存在、不可见或已删除。",
+            code="VIDEO_NOT_FOUND",
+        )
+
+    @staticmethod
+    def _remove_watermark(detail: dict[str, Any]) -> None:
+        video = detail.get("video")
+        if not isinstance(video, dict):
+            return
+        addresses = [video.get("play_addr")]
+        addresses.extend(
+            entry.get("play_addr")
+            for entry in (video.get("bit_rate") or [])
+            if isinstance(entry, dict)
+        )
+        for address in addresses:
+            if not isinstance(address, dict):
+                continue
+            urls = address.get("url_list")
+            if not isinstance(urls, list):
+                continue
+            address["url_list"] = [
+                url.replace("/aweme/v1/playwm/", "/aweme/v1/play/")
+                if isinstance(url, str)
+                else url
+                for url in urls
+            ]
+
+    async def parse(self, url: str, aweme_id: str) -> ParseResult:
+        async with httpx.AsyncClient(
+            timeout=self.timeout,
+            follow_redirects=False,
+            transport=self.transport,
+        ) as client:
+            try:
+                response = await client.get(
+                    f"{self.SHARE_BASE}/{aweme_id}/",
+                    headers={
+                        "User-Agent": self.MOBILE_USER_AGENT,
+                        "Accept-Language": "zh-CN,zh;q=0.9",
+                    },
+                )
+            except httpx.HTTPError as exc:
+                raise DouyinError(
+                    "Linux 服务器暂时无法连接抖音官方分享页。",
+                    code="SHARE_PAGE_NETWORK",
+                    retryable=True,
+                    status_code=503,
+                ) from exc
+        if response.status_code >= 500:
+            raise DouyinError(
+                "抖音官方分享页暂时不可用。",
+                code="SHARE_PAGE_SERVER",
+                retryable=True,
+                status_code=503,
+            )
+        if response.status_code != 200 or not response.content:
+            raise DouyinError(
+                "抖音官方分享页没有返回作品数据。",
+                code="SHARE_PAGE_EMPTY",
+                status_code=503,
+            )
+        detail = self._detail(self._router_data(response.text))
+        if str(detail.get("aweme_id") or "") != aweme_id:
+            raise DouyinError(
+                "抖音官方分享页返回了其他作品。",
+                code="SHARE_PAGE_MISMATCH",
+                status_code=503,
+            )
+        self._remove_watermark(detail)
+        author_data = detail.get("author") or {}
+        return ParseResult(
+            original_url=url,
+            aweme_id=aweme_id,
+            title=str(detail.get("desc") or f"抖音视频 {aweme_id}").strip(),
+            author=str(author_data.get("nickname") or "抖音作者").strip(),
+            cover_url=_cover_url(detail),
+            duration_ms=int((detail.get("video") or {}).get("duration") or 0)
+            or None,
+            qualities=_extract_qualities(detail),
             provider=self.name,
         )
 
