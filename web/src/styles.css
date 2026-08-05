@@ -5208,6 +5208,64 @@ textarea:focus {
   box-shadow: var(--shadow);
 }
 
+.transcribe-workbench .douyin-input-wrap {
+  border-color: #d9d6cc;
+  background: linear-gradient(180deg, #fff 0%, #fbfaf6 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 2px 8px rgba(36, 34, 28, 0.035);
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.transcribe-workbench .douyin-input-wrap:hover:not(:focus-within) {
+  border-color: #c7c3b7;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 4px 14px rgba(36, 34, 28, 0.055);
+}
+
+.transcribe-workbench .douyin-input-wrap:focus-within {
+  border-color: rgba(199, 68, 36, 0.52);
+  background: #fffdfb;
+  box-shadow:
+    0 0 0 4px rgba(231, 91, 51, 0.075),
+    0 12px 28px rgba(42, 37, 29, 0.075);
+  transform: translateY(-1px);
+}
+
+.transcribe-workbench .douyin-input-wrap > svg {
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  margin-top: 0;
+  padding: 7px;
+  border-radius: 9px;
+  color: #85847b;
+  background: rgba(80, 78, 68, 0.055);
+  transition:
+    color 180ms ease,
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.transcribe-workbench .douyin-input-wrap:focus-within > svg {
+  color: var(--accent);
+  background: rgba(231, 91, 51, 0.105);
+  transform: scale(1.04);
+}
+
+.transcribe-workbench .douyin-input-wrap textarea::placeholder {
+  color: #99988f;
+}
+
+.transcribe-workbench .douyin-input-wrap textarea:focus-visible {
+  outline: none;
+}
+
 .transcribe-route-picker {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -7681,6 +7739,41 @@ textarea:focus {
 [data-theme="dark"] .transcribe-route-picker > button.selected {
   border-color: rgba(239, 112, 78, 0.5);
   background: rgba(231, 91, 51, 0.09);
+}
+
+[data-theme="dark"] .transcribe-workbench .douyin-input-wrap {
+  border-color: #3e3f37;
+  background: linear-gradient(180deg, #1d1e19 0%, #191a15 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.025),
+    0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"]
+  .transcribe-workbench
+  .douyin-input-wrap:hover:not(:focus-within) {
+  border-color: #515249;
+}
+
+[data-theme="dark"] .transcribe-workbench .douyin-input-wrap:focus-within {
+  border-color: rgba(239, 112, 78, 0.58);
+  background: #1f201a;
+  box-shadow:
+    0 0 0 4px rgba(231, 91, 51, 0.11),
+    0 14px 30px rgba(0, 0, 0, 0.24);
+}
+
+[data-theme="dark"] .transcribe-workbench .douyin-input-wrap > svg {
+  color: #aaa99f;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+[data-theme="dark"]
+  .transcribe-workbench
+  .douyin-input-wrap:focus-within
+  > svg {
+  color: #ef704e;
+  background: rgba(231, 91, 51, 0.14);
 }
 
 [data-theme="dark"] .server-cost-warning {
