@@ -702,7 +702,10 @@ class DouyinEngine:
             if state.open_until > time.monotonic():
                 self.metrics[f"{provider.name}_circuit_skips"] += 1
                 continue
-            attempts = 3 if index == 0 else 1
+            # The fallback is an external service and can occasionally time out.
+            # Give a retryable fallback failure one extra chance instead of
+            # turning a brief network wobble into a user-visible hard failure.
+            attempts = 3 if index == 0 else 2
             for attempt in range(attempts):
                 await self._wait_for_rate_slot()
                 self.metrics[f"{provider.name}_attempts"] += 1

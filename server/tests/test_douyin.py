@@ -198,6 +198,42 @@ async def test_engine_falls_back_without_repeating_risk_error():
 
 
 @pytest.mark.asyncio
+async def test_engine_retries_a_transient_fallback_network_error():
+    class FailingPrimary:
+        name = "primary"
+
+        async def parse(self, url: str, aweme_id: str) -> ParseResult:
+            raise DouyinError("session", code="SESSION_REQUIRED", retryable=False)
+
+    class RecoveringFallback:
+        name = "fallback"
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def parse(self, url: str, aweme_id: str) -> ParseResult:
+            self.calls += 1
+            if self.calls == 1:
+                raise DouyinError(
+                    "network",
+                    code="FALLBACK_NETWORK",
+                    retryable=True,
+                )
+            return parsed_result("fallback")
+
+    fallback = RecoveringFallback()
+    engine = DouyinEngine(
+        [FailingPrimary(), fallback],
+        minimum_interval_seconds=0,
+    )
+
+    result = await engine.parse(VIDEO_URL)
+
+    assert result.provider == "fallback"
+    assert fallback.calls == 2
+
+
+@pytest.mark.asyncio
 async def test_engine_invalidate_forces_fresh_media_urls():
     calls = 0
 

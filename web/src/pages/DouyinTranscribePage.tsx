@@ -8,12 +8,14 @@ import {
   LoaderCircle,
   ShieldCheck,
   Sparkles,
+  WifiOff,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { api } from "../lib/api";
+import { douyinAgent } from "../lib/douyin-agent";
 
 interface LocationState {
   text?: string;
@@ -24,8 +26,33 @@ export function DouyinTranscribePage() {
   const location = useLocation();
   const initialText = (location.state as LocationState | null)?.text ?? "";
   const [text, setText] = useState(initialText);
+  const [agentHealth, setAgentHealth] = useState<
+    Awaited<ReturnType<typeof douyinAgent.health>> | null
+  >(null);
+  const [checkingAgent, setCheckingAgent] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  async function refreshAgent() {
+    setCheckingAgent(true);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 1600);
+    try {
+      const health = await douyinAgent.health(controller.signal).catch(() => null);
+      setAgentHealth(health);
+    } finally {
+      window.clearTimeout(timeout);
+      setCheckingAgent(false);
+    }
+  }
+
+  useEffect(() => {
+    void refreshAgent();
+  }, []);
+
+  const localConnected = Boolean(
+    agentHealth?.paired && agentHealth.device_id && agentHealth.douyin !== false,
+  );
 
   async function paste() {
     try {
@@ -81,6 +108,42 @@ export function DouyinTranscribePage() {
           <div className="server-cost-warning">
             <Cloud size={16} />
             当前统一使用服务器转写，任务将按顺序排队处理。
+          </div>
+          <div
+            className={`local-agent-status ${localConnected ? "ready" : "offline"}`}
+            role="status"
+          >
+            <div>
+              {checkingAgent ? (
+                <LoaderCircle className="spin" size={17} />
+              ) : localConnected ? (
+                <CheckCircle2 size={17} />
+              ) : (
+                <WifiOff size={17} />
+              )}
+              <span>
+                <strong>
+                  {checkingAgent
+                    ? "当前状态：正在检测本机组件"
+                    : localConnected
+                      ? "当前状态：本机组件已连接"
+                      : "当前状态：本机组件未连接"}
+                </strong>
+                <small>
+                  {localConnected
+                    ? "抖音下载可优先使用本机线路；转文案当前仍由服务器处理。"
+                    : "转文案当前使用服务器线路，本机组件状态不会阻止提交。"}
+                </small>
+              </span>
+            </div>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void refreshAgent()}
+              disabled={checkingAgent}
+            >
+              重新检测
+            </button>
           </div>
           <div className="transcribe-model">
             <span>
