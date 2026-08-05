@@ -7,10 +7,6 @@ import { DouyinTranscribePage } from "./DouyinTranscribePage";
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
-  devices: vi.fn(),
-  health: vi.fn(),
-  pairCode: vi.fn(),
-  pair: vi.fn(),
   navigate: vi.fn(),
 }));
 
@@ -21,15 +17,6 @@ vi.mock("../components/AppShell", () => ({
 vi.mock("../lib/api", () => ({
   api: {
     createDouyinTranscription: mocks.create,
-    devices: mocks.devices,
-    pairCode: mocks.pairCode,
-  },
-}));
-
-vi.mock("../lib/douyin-agent", () => ({
-  douyinAgent: {
-    health: mocks.health,
-    pair: mocks.pair,
   },
 }));
 
@@ -49,35 +36,6 @@ vi.mock("react-router-dom", async (importOriginal) => {
 describe("DouyinTranscribePage", () => {
   beforeEach(() => {
     mocks.create.mockReset().mockResolvedValue({ task_id: "task-1" });
-    mocks.health.mockReset().mockResolvedValue({
-      status: "ok",
-      paired: true,
-      device_id: "device-1",
-      version: "0.1.0",
-      douyin: true,
-    });
-    mocks.devices.mockReset().mockResolvedValue([
-      {
-        id: "device-1",
-        name: "测试 Mac",
-        platform: "Darwin",
-        online: true,
-        last_seen_at: new Date().toISOString(),
-        hardware: {},
-        models: [
-          {
-            id: "large-v3-turbo",
-            label: "Large V3 Turbo",
-            description: "均衡",
-            approximate_bytes: 1,
-            installed: true,
-            recommended: true,
-          },
-        ],
-      },
-    ]);
-    mocks.pairCode.mockReset();
-    mocks.pair.mockReset();
     mocks.navigate.mockReset();
   });
 
@@ -85,21 +43,17 @@ describe("DouyinTranscribePage", () => {
     cleanup();
   });
 
-  it("creates a local Agent transcription by default and opens the editor", async () => {
+  it("hides local transcription and creates a server transcription", async () => {
     render(<DouyinTranscribePage />);
-    await screen.findByText("测试 Mac已连接");
+    expect(screen.queryByText(/本机转写/)).toBeNull();
     fireEvent.click(
-      screen.getByRole("button", { name: "在本机转成文案" }),
+      screen.getByRole("button", { name: "用服务器转成文案" }),
     );
 
     await waitFor(() =>
       expect(mocks.create).toHaveBeenCalledWith(
         "https://www.douyin.com/video/7372484719365098803",
-        {
-          backend: "local_agent",
-          device_id: "device-1",
-          model_id: "large-v3-turbo",
-        },
+        { backend: "server" },
       ),
     );
     expect(mocks.navigate).toHaveBeenCalledWith("/tasks/task-1");
@@ -108,9 +62,6 @@ describe("DouyinTranscribePage", () => {
   it("keeps the user on the page when task creation fails", async () => {
     mocks.create.mockRejectedValue(new Error("服务器转写队列已满，请稍后再试。"));
     render(<DouyinTranscribePage />);
-    fireEvent.click(
-      await screen.findByRole("button", { name: /^服务器转写/ }),
-    );
     fireEvent.click(
       screen.getByRole("button", { name: "用服务器转成文案" }),
     );
@@ -121,20 +72,4 @@ describe("DouyinTranscribePage", () => {
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
-  it("shows an explicit offline message and does not silently use the server", async () => {
-    mocks.health.mockRejectedValue(new Error("offline"));
-    mocks.devices.mockResolvedValue([]);
-    render(<DouyinTranscribePage />);
-    await screen.findByText("未检测到当前账号的在线 Agent");
-    fireEvent.click(
-      screen.getByRole("button", { name: "在本机转成文案" }),
-    );
-
-    expect(
-      await screen.findByText(
-        "本机 Agent 离线或未与当前账号配对，请先启动并连接。",
-      ),
-    ).toBeTruthy();
-    expect(mocks.create).not.toHaveBeenCalled();
-  });
 });
