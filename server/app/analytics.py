@@ -125,6 +125,34 @@ ACTION_ROUTES: dict[tuple[str, str], ActionSpec] = {
         "DELETE",
         "/api/scripts/{script_id}",
     ): ActionSpec("script_library.delete", "script", "script_id"),
+    (
+        "POST",
+        "/api/content-creative-quiz/sessions",
+    ): ActionSpec("content_creative_quiz.session.create", "quiz_session"),
+    (
+        "PUT",
+        "/api/content-creative-quiz/sessions/{session_id}/answers/{question_id}",
+    ): ActionSpec("content_creative_quiz.answer", "quiz_session", "session_id"),
+    (
+        "POST",
+        "/api/content-creative-quiz/sessions/{session_id}/submit",
+    ): ActionSpec("content_creative_quiz.submit", "quiz_session", "session_id"),
+    (
+        "POST",
+        "/api/admin/content-creative-questions",
+    ): ActionSpec("content_creative_quiz.question.create", "question"),
+    (
+        "PATCH",
+        "/api/admin/content-creative-questions/{question_id}",
+    ): ActionSpec("content_creative_quiz.question.update", "question", "question_id"),
+    (
+        "PATCH",
+        "/api/admin/content-creative-questions/{question_id}/status",
+    ): ActionSpec("content_creative_quiz.question.status", "question", "question_id"),
+    (
+        "POST",
+        "/api/admin/content-creative-questions/{question_id}/versions/{version}/restore",
+    ): ActionSpec("content_creative_quiz.question.restore", "question", "question_id"),
 }
 
 

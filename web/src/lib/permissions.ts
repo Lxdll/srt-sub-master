@@ -7,6 +7,7 @@ export const FEATURE_LABELS: Record<PermissionKey, string> = {
   script_analysis: "脚本拆解",
   script_fission: "脚本裂变",
   script_library: "共享脚本库",
+  content_creative_quiz: "内容创意刷题",
 };
 
 export const FEATURE_PERMISSIONS = Object.keys(
@@ -20,7 +21,8 @@ export type ToolKey =
   | "prohibited_word_check"
   | "script_analysis"
   | "script_fission"
-  | "script_library";
+  | "script_library"
+  | "content_creative_quiz";
 
 export interface ToolDefinition {
   key: ToolKey;
@@ -29,7 +31,7 @@ export interface ToolDefinition {
   input: string;
   output: string;
   path: string;
-  group: "video" | "copy";
+  group: "video" | "copy" | "learning";
   permissions: PermissionKey[];
   featured?: boolean;
 }
@@ -106,6 +108,17 @@ export const TOOLS: ToolDefinition[] = [
     path: "/script-library",
     group: "copy",
     permissions: ["script_library"],
+  },
+  {
+    key: "content_creative_quiz",
+    title: "巨量认证内容创意初级刷题",
+    description: "按来源和题型练习真题，复盘错题并参加模拟考试。",
+    input: "练习模式与题目范围",
+    output: "成绩、解析与错题本",
+    path: "/content-creative-quiz",
+    group: "learning",
+    permissions: ["content_creative_quiz"],
+    featured: true,
   },
 ];
 

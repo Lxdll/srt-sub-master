@@ -23,6 +23,7 @@ FEATURE_PERMISSIONS = frozenset(
         "script_analysis",
         "script_fission",
         "script_library",
+        "content_creative_quiz",
     }
 )
 command_serializer = URLSafeTimedSerializer(

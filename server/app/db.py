@@ -281,6 +281,100 @@ CREATE TABLE IF NOT EXISTS action_daily_stats (
 
 CREATE INDEX IF NOT EXISTS idx_action_daily_stats_day
 ON action_daily_stats(day);
+
+CREATE TABLE IF NOT EXISTS content_creative_questions (
+    id TEXT PRIMARY KEY,
+    serial INTEGER NOT NULL UNIQUE,
+    source TEXT NOT NULL,
+    question_type TEXT NOT NULL CHECK(question_type IN ('single', 'multiple', 'judgment')),
+    prompt TEXT NOT NULL,
+    options_json TEXT NOT NULL,
+    correct_options_json TEXT NOT NULL,
+    note TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    needs_review INTEGER NOT NULL DEFAULT 0,
+    review_notes_json TEXT NOT NULL DEFAULT '[]',
+    content_version INTEGER NOT NULL DEFAULT 1,
+    grading_version INTEGER NOT NULL DEFAULT 1,
+    created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    updated_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_creative_questions_active_serial
+ON content_creative_questions(is_active, serial);
+
+CREATE INDEX IF NOT EXISTS idx_content_creative_questions_source_type
+ON content_creative_questions(source, question_type);
+
+CREATE TABLE IF NOT EXISTS content_creative_question_versions (
+    id TEXT PRIMARY KEY,
+    question_id TEXT NOT NULL REFERENCES content_creative_questions(id) ON DELETE RESTRICT,
+    version_number INTEGER NOT NULL,
+    snapshot_json TEXT NOT NULL,
+    action TEXT NOT NULL CHECK(action IN ('import', 'create', 'update', 'enable', 'disable', 'restore')),
+    admin_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(question_id, version_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_creative_versions_question
+ON content_creative_question_versions(question_id, version_number DESC);
+
+CREATE TABLE IF NOT EXISTS content_creative_quiz_sessions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    mode TEXT NOT NULL CHECK(mode IN ('sequential', 'random', 'mistakes', 'mock')),
+    status TEXT NOT NULL CHECK(status IN ('active', 'completed', 'abandoned')),
+    filters_json TEXT NOT NULL DEFAULT '{}',
+    duration_seconds INTEGER,
+    started_at TEXT NOT NULL,
+    deadline_at TEXT,
+    completed_at TEXT,
+    abandoned_at TEXT,
+    score_correct INTEGER,
+    score_total INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_creative_sessions_user_updated
+ON content_creative_quiz_sessions(user_id, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS content_creative_quiz_session_questions (
+    session_id TEXT NOT NULL REFERENCES content_creative_quiz_sessions(id) ON DELETE CASCADE,
+    ordinal INTEGER NOT NULL,
+    question_id TEXT NOT NULL,
+    grading_version INTEGER NOT NULL,
+    snapshot_json TEXT NOT NULL,
+    PRIMARY KEY(session_id, question_id),
+    UNIQUE(session_id, ordinal)
+);
+
+CREATE TABLE IF NOT EXISTS content_creative_quiz_answers (
+    session_id TEXT NOT NULL REFERENCES content_creative_quiz_sessions(id) ON DELETE CASCADE,
+    question_id TEXT NOT NULL,
+    selected_options_json TEXT NOT NULL,
+    is_correct INTEGER NOT NULL,
+    answered_at TEXT NOT NULL,
+    PRIMARY KEY(session_id, question_id)
+);
+
+CREATE TABLE IF NOT EXISTS content_creative_question_progress (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    question_id TEXT NOT NULL,
+    grading_version INTEGER NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    correct_count INTEGER NOT NULL DEFAULT 0,
+    wrong_count INTEGER NOT NULL DEFAULT 0,
+    last_is_correct INTEGER NOT NULL,
+    last_answered_at TEXT NOT NULL,
+    PRIMARY KEY(user_id, question_id, grading_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_creative_progress_user_last
+ON content_creative_question_progress(user_id, last_is_correct, last_answered_at DESC);
 """
 
 

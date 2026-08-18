@@ -38,6 +38,10 @@ from .analytics import (
     set_action_metadata,
 )
 from .config import settings
+from .content_creative_quiz import (
+    initialize_content_creative_questions,
+    router as content_creative_quiz_router,
+)
 from .db import db_session, initialize_database, utc_now
 from .douyin import douyin_service
 from douyin_engine import DouyinError, content_disposition
@@ -147,6 +151,7 @@ def _bootstrap_admin() -> None:
 async def lifespan(_: FastAPI):
     initialize_database()
     _bootstrap_admin()
+    initialize_content_creative_questions()
     analytics_service.start()
     hot_rank_service.start()
     try:
@@ -172,6 +177,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(script_library_router)
+app.include_router(content_creative_quiz_router)
 
 
 @app.middleware("http")

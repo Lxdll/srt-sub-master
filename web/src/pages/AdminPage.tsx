@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  BookOpenCheck,
   CheckCircle2,
   Eye,
   EyeOff,
@@ -38,7 +39,13 @@ const AdminAnalytics = lazy(() =>
   })),
 );
 
-type AdminTab = "visits" | "ip-links" | "actions" | "accounts";
+const AdminQuestionBank = lazy(() =>
+  import("../components/AdminQuestionBank").then((module) => ({
+    default: module.AdminQuestionBank,
+  })),
+);
+
+type AdminTab = "visits" | "ip-links" | "actions" | "accounts" | "questions";
 
 function formatCreatedAt(value: string) {
   const date = new Date(value);
@@ -291,6 +298,7 @@ export function AdminPage() {
             { key: "ip-links" as const, label: "IP 关联", icon: <Link2 size={16} /> },
             { key: "actions" as const, label: "操作记录", icon: <Activity size={16} /> },
             { key: "accounts" as const, label: "账号管理", icon: <Users size={16} /> },
+            { key: "questions" as const, label: "题库管理", icon: <BookOpenCheck size={16} /> },
           ].map((tab) => (
             <button
               type="button"
@@ -304,7 +312,11 @@ export function AdminPage() {
           ))}
         </nav>
 
-        {activeTab === "accounts" ? (
+        {activeTab === "questions" ? (
+          <Suspense fallback={<div className="analytics-state">正在加载题库…</div>}>
+            <AdminQuestionBank />
+          </Suspense>
+        ) : activeTab === "accounts" ? (
           <>
           <section className="admin-intro">
           <div>

@@ -9,7 +9,120 @@ export type PermissionKey =
   | "prohibited_word_check"
   | "script_analysis"
   | "script_fission"
-  | "script_library";
+  | "script_library"
+  | "content_creative_quiz";
+
+export type ContentCreativeQuestionType = "single" | "multiple" | "judgment";
+export type ContentCreativeQuizMode =
+  | "sequential"
+  | "random"
+  | "mistakes"
+  | "mock";
+
+export interface ContentCreativeOption {
+  key: string;
+  text: string;
+}
+
+export interface ContentCreativeQuestion {
+  id: string;
+  serial: number;
+  source: string;
+  question_type: ContentCreativeQuestionType;
+  prompt: string;
+  options: ContentCreativeOption[];
+  selected_options: string[];
+  answered_at: string | null;
+  is_correct: boolean | null;
+  correct_options: string[] | null;
+  note: string | null;
+}
+
+export interface ContentCreativeQuizSession {
+  id: string;
+  mode: ContentCreativeQuizMode;
+  status: "active" | "completed" | "abandoned";
+  filters: {
+    sources: string[];
+    question_types: ContentCreativeQuestionType[];
+    question_count: number;
+  };
+  duration_seconds: number | null;
+  deadline_at: string | null;
+  started_at: string;
+  completed_at: string | null;
+  elapsed_seconds: number;
+  question_count: number;
+  answered_count: number;
+  score_correct: number | null;
+  score_total: number | null;
+  breakdown: Record<ContentCreativeQuestionType, { total: number; correct: number }> | null;
+  questions: ContentCreativeQuestion[];
+}
+
+export interface ContentCreativeQuizOverview {
+  question_count: number;
+  by_type: Record<ContentCreativeQuestionType, number>;
+  sources: Array<{ source: string; count: number }>;
+  progress: {
+    attempts: number;
+    correct: number;
+    correct_rate: number;
+    mistakes: number;
+  };
+  active_session: ContentCreativeQuizSession | null;
+  recent_sessions: Array<{
+    id: string;
+    mode: ContentCreativeQuizMode;
+    status: "completed" | "abandoned";
+    started_at: string;
+    completed_at: string | null;
+    score_correct: number | null;
+    score_total: number | null;
+    duration_seconds: number | null;
+  }>;
+}
+
+export interface AdminContentCreativeQuestion {
+  id: string;
+  serial: number;
+  source: string;
+  question_type: ContentCreativeQuestionType;
+  prompt: string;
+  options: ContentCreativeOption[];
+  correct_options: string[];
+  note: string | null;
+  is_active: boolean;
+  needs_review: boolean;
+  review_notes: string[];
+  content_version: number;
+  grading_version: number;
+  created_at: string;
+  updated_at: string;
+  updated_by_username: string | null;
+}
+
+export interface AdminContentCreativeQuestionList {
+  items: AdminContentCreativeQuestion[];
+  total: number;
+  offset: number;
+  limit: number;
+  summary: {
+    active: number;
+    inactive: number;
+    needs_review: number;
+    by_type: Record<ContentCreativeQuestionType, number>;
+    sources: string[];
+  };
+}
+
+export interface AdminContentCreativeQuestionVersion {
+  version_number: number;
+  action: "import" | "create" | "update" | "enable" | "disable" | "restore";
+  admin_username: string | null;
+  created_at: string;
+  snapshot: AdminContentCreativeQuestion;
+}
 
 export interface User {
   id: string;

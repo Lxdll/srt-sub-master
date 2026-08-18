@@ -1,6 +1,9 @@
 import type {
   ActionEvent,
   ActionOverview,
+  AdminContentCreativeQuestion,
+  AdminContentCreativeQuestionList,
+  AdminContentCreativeQuestionVersion,
   AdminUser,
   AnalyticsDays,
   AnalyticsOverview,
@@ -21,6 +24,10 @@ import type {
   IpUserLink,
   ScriptLibraryDetail,
   ScriptLibraryListResponse,
+  ContentCreativeQuestionType,
+  ContentCreativeQuizMode,
+  ContentCreativeQuizOverview,
+  ContentCreativeQuizSession,
 } from "../types";
 import type { components } from "../generated/api";
 
@@ -205,6 +212,149 @@ export const api = {
   hotRanks(refresh = false) {
     const query = refresh ? "?refresh=true" : "";
     return request<HotRanksResponse>(`/api/hot-ranks${query}`);
+  },
+
+  contentCreativeQuizOverview() {
+    return request<ContentCreativeQuizOverview>(
+      "/api/content-creative-quiz/overview",
+    );
+  },
+
+  createContentCreativeQuizSession(payload: {
+    mode: ContentCreativeQuizMode;
+    sources: string[];
+    question_types: ContentCreativeQuestionType[];
+    question_count?: number;
+    duration_minutes?: number;
+    all_questions?: boolean;
+  }) {
+    return request<ContentCreativeQuizSession>(
+      "/api/content-creative-quiz/sessions",
+      {
+        method: "POST",
+        csrf: true,
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  contentCreativeQuizSession(sessionId: string) {
+    return request<ContentCreativeQuizSession>(
+      `/api/content-creative-quiz/sessions/${encodeURIComponent(sessionId)}`,
+    );
+  },
+
+  answerContentCreativeQuestion(
+    sessionId: string,
+    questionId: string,
+    selectedOptions: string[],
+  ) {
+    return request<ContentCreativeQuizSession>(
+      `/api/content-creative-quiz/sessions/${encodeURIComponent(sessionId)}/answers/${encodeURIComponent(questionId)}`,
+      {
+        method: "PUT",
+        csrf: true,
+        body: JSON.stringify({ selected_options: selectedOptions }),
+      },
+    );
+  },
+
+  submitContentCreativeQuizSession(sessionId: string) {
+    return request<ContentCreativeQuizSession>(
+      `/api/content-creative-quiz/sessions/${encodeURIComponent(sessionId)}/submit`,
+      { method: "POST", csrf: true },
+    );
+  },
+
+  adminContentCreativeQuestions(params: {
+    query?: string;
+    source?: string;
+    question_type?: ContentCreativeQuestionType;
+    status?: "all" | "active" | "inactive";
+    needs_review?: boolean;
+    sort?: "serial" | "updated";
+    offset?: number;
+    limit?: number;
+  }) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== "") query.set(key, String(value));
+    }
+    return request<AdminContentCreativeQuestionList>(
+      `/api/admin/content-creative-questions?${query.toString()}`,
+    );
+  },
+
+  createAdminContentCreativeQuestion(
+    payload: Pick<
+      AdminContentCreativeQuestion,
+      "source" | "question_type" | "prompt" | "options" | "correct_options" | "note"
+    >,
+  ) {
+    return request<AdminContentCreativeQuestion>(
+      "/api/admin/content-creative-questions",
+      {
+        method: "POST",
+        csrf: true,
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  updateAdminContentCreativeQuestion(
+    questionId: string,
+    payload: Pick<
+      AdminContentCreativeQuestion,
+      "source" | "question_type" | "prompt" | "options" | "correct_options" | "note"
+    > & { expected_version: number },
+  ) {
+    return request<AdminContentCreativeQuestion>(
+      `/api/admin/content-creative-questions/${encodeURIComponent(questionId)}`,
+      {
+        method: "PATCH",
+        csrf: true,
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  setAdminContentCreativeQuestionStatus(
+    questionId: string,
+    expectedVersion: number,
+    isActive: boolean,
+  ) {
+    return request<AdminContentCreativeQuestion>(
+      `/api/admin/content-creative-questions/${encodeURIComponent(questionId)}/status`,
+      {
+        method: "PATCH",
+        csrf: true,
+        body: JSON.stringify({
+          expected_version: expectedVersion,
+          is_active: isActive,
+        }),
+      },
+    );
+  },
+
+  adminContentCreativeQuestionVersions(questionId: string) {
+    return request<AdminContentCreativeQuestionVersion[]>(
+      `/api/admin/content-creative-questions/${encodeURIComponent(questionId)}/versions`,
+    );
+  },
+
+  restoreAdminContentCreativeQuestion(
+    questionId: string,
+    version: number,
+    expectedVersion: number,
+  ) {
+    return request<AdminContentCreativeQuestion>(
+      `/api/admin/content-creative-questions/${encodeURIComponent(questionId)}/versions/${version}/restore`,
+      {
+        method: "POST",
+        csrf: true,
+        body: JSON.stringify({ expected_version: expectedVersion }),
+      },
+    );
   },
 
   pairCode() {

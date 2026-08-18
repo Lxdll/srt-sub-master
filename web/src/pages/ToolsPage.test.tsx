@@ -87,4 +87,14 @@ describe("ToolsPage", () => {
     ).toBe("/script-fission");
     expect(screen.queryByText("脚本拆解")).toBeNull();
   });
+
+  it("shows content creative quiz only with its dedicated permission", () => {
+    mocks.user!.permissions = ["content_creative_quiz"];
+    renderPage();
+    expect(screen.getByText("巨量认证内容创意初级刷题")).toBeTruthy();
+    expect(screen.getByText("学习与认证")).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /开始使用/ }).getAttribute("href"),
+    ).toBe("/content-creative-quiz");
+  });
 });

@@ -41,6 +41,178 @@ export interface paths {
         patch: operations["update_script_api_scripts__script_id__patch"];
         trace?: never;
     };
+    "/api/admin/content-creative-questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin List Questions */
+        get: operations["admin_list_questions_api_admin_content_creative_questions_get"];
+        put?: never;
+        /** Admin Create Question */
+        post: operations["admin_create_question_api_admin_content_creative_questions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/content-creative-questions/{question_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin Get Question */
+        get: operations["admin_get_question_api_admin_content_creative_questions__question_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Admin Update Question */
+        patch: operations["admin_update_question_api_admin_content_creative_questions__question_id__patch"];
+        trace?: never;
+    };
+    "/api/admin/content-creative-questions/{question_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Admin Update Question Status */
+        patch: operations["admin_update_question_status_api_admin_content_creative_questions__question_id__status_patch"];
+        trace?: never;
+    };
+    "/api/admin/content-creative-questions/{question_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin Question Versions */
+        get: operations["admin_question_versions_api_admin_content_creative_questions__question_id__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/content-creative-questions/{question_id}/versions/{version}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin Restore Question */
+        post: operations["admin_restore_question_api_admin_content_creative_questions__question_id__versions__version__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/content-creative-quiz/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quiz Overview */
+        get: operations["quiz_overview_api_content_creative_quiz_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/content-creative-quiz/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Quiz Session */
+        post: operations["create_quiz_session_api_content_creative_quiz_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/content-creative-quiz/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Quiz Session */
+        get: operations["get_quiz_session_api_content_creative_quiz_sessions__session_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/content-creative-quiz/sessions/{session_id}/answers/{question_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Answer Quiz Question */
+        put: operations["answer_quiz_question_api_content_creative_quiz_sessions__session_id__answers__question_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/content-creative-quiz/sessions/{session_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Quiz Session */
+        post: operations["submit_quiz_session_api_content_creative_quiz_sessions__session_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -968,6 +1140,11 @@ export interface components {
             /** Period Unique Ips */
             period_unique_ips: number;
         };
+        /** AnswerRequest */
+        AnswerRequest: {
+            /** Selected Options */
+            selected_options: string[];
+        };
         /** AttachAssetRequest */
         AttachAssetRequest: {
             /** Local Asset Id */
@@ -1022,7 +1199,7 @@ export interface components {
              */
             is_admin: boolean;
             /** Permissions */
-            permissions?: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check" | "script_analysis" | "script_fission" | "script_library")[];
+            permissions?: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check" | "script_analysis" | "script_fission" | "script_library" | "content_creative_quiz")[];
         };
         /** CustomProhibitedWordRequest */
         CustomProhibitedWordRequest: {
@@ -1271,6 +1448,66 @@ export interface components {
             /** Unique Term Count */
             unique_term_count: number;
         };
+        /** QuestionRestoreRequest */
+        QuestionRestoreRequest: {
+            /** Expected Version */
+            expected_version: number;
+        };
+        /** QuestionStatusUpdate */
+        QuestionStatusUpdate: {
+            /** Expected Version */
+            expected_version: number;
+            /** Is Active */
+            is_active: boolean;
+        };
+        /** QuestionUpdate */
+        QuestionUpdate: {
+            /** Source */
+            source: string;
+            /**
+             * Question Type
+             * @enum {string}
+             */
+            question_type: "single" | "multiple" | "judgment";
+            /** Prompt */
+            prompt: string;
+            /** Options */
+            options: components["schemas"]["QuizOption"][];
+            /** Correct Options */
+            correct_options: string[];
+            /** Note */
+            note?: string | null;
+            /** Expected Version */
+            expected_version: number;
+        };
+        /** QuestionWrite */
+        QuestionWrite: {
+            /** Source */
+            source: string;
+            /**
+             * Question Type
+             * @enum {string}
+             */
+            question_type: "single" | "multiple" | "judgment";
+            /** Prompt */
+            prompt: string;
+            /** Options */
+            options: components["schemas"]["QuizOption"][];
+            /** Correct Options */
+            correct_options: string[];
+            /** Note */
+            note?: string | null;
+        };
+        /** QuizOption */
+        QuizOption: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H";
+            /** Text */
+            text: string;
+        };
         /** ScriptAnalysisHighlight */
         ScriptAnalysisHighlight: {
             /** Excerpt */
@@ -1455,6 +1692,27 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** SessionCreateRequest */
+        SessionCreateRequest: {
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "sequential" | "random" | "mistakes" | "mock";
+            /** Sources */
+            sources?: string[];
+            /** Question Types */
+            question_types?: ("single" | "multiple" | "judgment")[];
+            /** Question Count */
+            question_count?: number | null;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /**
+             * All Questions
+             * @default false
+             */
+            all_questions: boolean;
+        };
         /** TaskProgressRequest */
         TaskProgressRequest: {
             /**
@@ -1491,7 +1749,7 @@ export interface components {
         /** UpdateUserPermissionsRequest */
         UpdateUserPermissionsRequest: {
             /** Permissions */
-            permissions: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check" | "script_analysis" | "script_fission" | "script_library")[];
+            permissions: ("subtitle_workspace" | "douyin_download" | "prohibited_word_check" | "script_analysis" | "script_fission" | "script_library" | "content_creative_quiz")[];
         };
         /** ValidationError */
         ValidationError: {
@@ -1703,6 +1961,453 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScriptDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_list_questions_api_admin_content_creative_questions_get: {
+        parameters: {
+            query?: {
+                query?: string;
+                source?: string;
+                question_type?: ("single" | "multiple" | "judgment") | null;
+                status?: "all" | "active" | "inactive";
+                needs_review?: boolean | null;
+                sort?: "serial" | "updated";
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_create_question_api_admin_content_creative_questions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_get_question_api_admin_content_creative_questions__question_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                question_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_update_question_api_admin_content_creative_questions__question_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                question_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_update_question_status_api_admin_content_creative_questions__question_id__status_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                question_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionStatusUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_question_versions_api_admin_content_creative_questions__question_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                question_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_restore_question_api_admin_content_creative_questions__question_id__versions__version__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                question_id: string;
+                version: number;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionRestoreRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quiz_overview_api_content_creative_quiz_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_quiz_session_api_content_creative_quiz_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_quiz_session_api_content_creative_quiz_sessions__session_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    answer_quiz_question_api_content_creative_quiz_sessions__session_id__answers__question_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                question_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_quiz_session_api_content_creative_quiz_sessions__session_id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: {
+                srt_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

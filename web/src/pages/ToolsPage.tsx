@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   AudioLines,
+  BookOpenCheck,
   Captions,
   Clapperboard,
   Download,
@@ -30,6 +31,7 @@ const TOOL_ICONS: Record<ToolKey, LucideIcon> = {
   script_analysis: Clapperboard,
   script_fission: WandSparkles,
   script_library: LibraryBig,
+  content_creative_quiz: BookOpenCheck,
 };
 
 function ToolCard({ tool }: { tool: ToolDefinition }) {
@@ -78,6 +80,7 @@ export function ToolsPage() {
   const availableTools = TOOLS.filter((tool) => canUseTool(user, tool));
   const videoTools = availableTools.filter((tool) => tool.group === "video");
   const copyTools = availableTools.filter((tool) => tool.group === "copy");
+  const learningTools = availableTools.filter((tool) => tool.group === "learning");
 
   function dismissNotice() {
     navigate(location.pathname, { replace: true, state: null });
@@ -135,6 +138,23 @@ export function ToolsPage() {
                 </div>
                 <div className="tool-grid">
                   {copyTools.map((tool) => (
+                    <ToolCard key={tool.key} tool={tool} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {learningTools.length > 0 && (
+              <section className="tool-group" aria-labelledby="learning-tools-title">
+                <div className="tool-group-heading">
+                  <span>03</span>
+                  <div>
+                    <h2 id="learning-tools-title">学习与认证</h2>
+                    <p>刷题、复盘与模拟考试</p>
+                  </div>
+                </div>
+                <div className="tool-grid">
+                  {learningTools.map((tool) => (
                     <ToolCard key={tool.key} tool={tool} />
                   ))}
                 </div>

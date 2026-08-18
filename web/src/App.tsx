@@ -13,6 +13,7 @@ import { EditorPage } from "./pages/EditorPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProhibitedWordsPage } from "./pages/ProhibitedWordsPage";
+import { ContentCreativeQuizPage } from "./pages/ContentCreativeQuizPage";
 import { ScriptAnalysisPage } from "./pages/ScriptAnalysisPage";
 import { ScriptFissionPage } from "./pages/ScriptFissionPage";
 import { ScriptLibraryDetailPage } from "./pages/ScriptLibraryDetailPage";
@@ -133,6 +134,14 @@ export function App() {
         element={
           <FeatureRoute permission="script_library">
             <ScriptLibraryDetailPage />
+          </FeatureRoute>
+        }
+      />
+      <Route
+        path="/content-creative-quiz"
+        element={
+          <FeatureRoute permission="content_creative_quiz">
+            <ContentCreativeQuizPage />
           </FeatureRoute>
         }
       />
